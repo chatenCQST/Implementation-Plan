@@ -1,525 +1,2890 @@
-<!DOCTYPE html>
+<!doctype html>
 
 <html lang="en">
-<head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1" name="viewport"/>
-<meta content="CMS Scheduler design using Agenda.js, IST scheduling, permission-scoped visibility, task locks, workflow execution and notifications." name="description"/>
-<title>CMS Scheduler — Agenda.js Design (IST)</title>
-<style>
-:root{
-  --bg:#f4f6fa;--paper:#fff;--ink:#172033;--muted:#64748b;--line:#dce3ee;
-  --navy:#101c33;--navy2:#172947;--blue:#2563eb;--blue-soft:#eaf1ff;
-  --teal:#0f766e;--teal-soft:#e7f7f4;--violet:#6d4acb;--violet-soft:#f2edff;
-  --amber:#a16207;--amber-soft:#fff6df;--red:#b42318;--red-soft:#fff0ef;
-  --green:#15803d;--green-soft:#eaf8ef;--shadow:0 16px 42px rgba(20,35,60,.08);
-  --radius:18px;
-}
-*{box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.65 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
-a{color:var(--blue);text-decoration:none}
-a:hover{text-decoration:underline}
-.topbar{background:linear-gradient(120deg,var(--navy),#1d3457);color:#fff;padding:22px max(24px,calc((100% - 1320px)/2));display:flex;align-items:center;justify-content:space-between;gap:20px}
-.brand{display:flex;align-items:center;gap:12px;font-weight:800;letter-spacing:.02em}
-.brand-mark{width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,#60a5fa,#5eead4);display:grid;place-items:center;color:#0c1a30;font-weight:900;font-size:18px}
-.topmeta{font-size:12px;color:#c8d5e8;text-align:right}
-.hero{background:linear-gradient(120deg,#101c33 0%,#18375a 58%,#155e75 100%);color:#fff;padding:52px 24px 62px}
-.hero-inner{max-width:1220px;margin:auto}
-.eyebrow{font-size:12px;text-transform:uppercase;letter-spacing:.16em;font-weight:800;color:#9bd9e6}
-h1{font-size:clamp(34px,5vw,58px);line-height:1.06;letter-spacing:-.04em;margin:12px 0 18px;max-width:900px}
-.hero p{font-size:18px;line-height:1.6;color:#d5e1f0;max-width:820px;margin:0}
-.pills{display:flex;flex-wrap:wrap;gap:8px;margin-top:25px}
-.pill{font-size:12px;font-weight:700;padding:6px 10px;border:1px solid rgba(255,255,255,.25);border-radius:999px;color:#e7f1ff;background:rgba(255,255,255,.08)}
-.layout{max-width:1320px;margin:28px auto;padding:0 22px;display:grid;grid-template-columns:245px minmax(0,1fr);gap:25px;align-items:start}
-.toc{position:sticky;top:18px;background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:18px;box-shadow:0 6px 20px rgba(20,35,60,.04)}
-.toc h2{font-size:12px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);margin:0 0 12px}
-.toc a{display:block;padding:7px 9px;border-radius:8px;font-size:13px;color:#3c4a60}
-.toc a:hover{background:var(--blue-soft);text-decoration:none;color:#1749ad}
-main{min-width:0}
-.section{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);padding:30px;margin-bottom:22px;box-shadow:0 6px 24px rgba(20,35,60,.035);scroll-margin-top:20px}
-.section-kicker{font-size:11px;text-transform:uppercase;letter-spacing:.15em;color:var(--blue);font-weight:850}
-h2{font-size:25px;line-height:1.2;letter-spacing:-.025em;margin:7px 0 15px}
-h3{font-size:17px;line-height:1.3;margin:22px 0 8px}
-p{margin:9px 0;color:#354257}
-.lead{font-size:16px;color:#46546a;max-width:950px}
-.small{font-size:13px;color:var(--muted)}
-.callout{border-left:4px solid var(--blue);background:var(--blue-soft);padding:15px 17px;border-radius:0 12px 12px 0;margin:17px 0;color:#203a67}
-.callout.warn{border-color:#d97706;background:var(--amber-soft);color:#74450a}
-.callout.good{border-color:var(--green);background:var(--green-soft);color:#14532d}
-.callout.danger{border-color:var(--red);background:var(--red-soft);color:#7f1d1d}
-.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:18px 0}
-.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:18px 0}
-.card{border:1px solid var(--line);border-radius:14px;padding:17px;background:#fff;min-width:0}
-.card h3{margin:0 0 7px;font-size:15px}
-.card p{font-size:13px;margin:0;color:var(--muted)}
-.card.blue{background:#f5f8ff;border-color:#cbdafc}.card.teal{background:#f1fbf9;border-color:#bee9df}.card.violet{background:#f8f5ff;border-color:#ddd1ff}.card.amber{background:#fffaf0;border-color:#f3dfae}
-.kpi{font-size:26px;font-weight:850;line-height:1.2;letter-spacing:-.04em;color:var(--navy)}
-.kpi-label{font-size:12px;color:var(--muted);margin-top:4px}
-.table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:12px;margin:15px 0}
-table{border-collapse:collapse;width:100%;min-width:680px;background:#fff}
-th,td{text-align:left;vertical-align:top;padding:12px 14px;border-bottom:1px solid var(--line);font-size:13px}
-th{background:#f6f8fc;color:#3b4960;font-size:11px;text-transform:uppercase;letter-spacing:.08em}
-tr:last-child td{border-bottom:0}
-code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:.91em;background:#eef2f8;color:#233a5d;padding:2px 5px;border-radius:5px}
-.badge{display:inline-block;border-radius:999px;padding:3px 8px;font-size:11px;font-weight:800;white-space:nowrap}
-.b-blue{background:var(--blue-soft);color:#1749ad}.b-teal{background:var(--teal-soft);color:#0f665e}.b-amber{background:var(--amber-soft);color:#80520c}.b-red{background:var(--red-soft);color:#a1261d}.b-green{background:var(--green-soft);color:#176438}.b-grey{background:#eef1f5;color:#4b5563}
-.diagram{border:1px solid var(--line);border-radius:16px;background:linear-gradient(180deg,#fbfcff,#f5f8fd);padding:20px;margin:18px 0;overflow:hidden}
-.diagram-title{font-size:13px;font-weight:850;color:#41516a;margin:0 0 15px;letter-spacing:.02em}
-.arch{display:grid;grid-template-columns:1fr 45px 1fr 45px 1fr;gap:7px;align-items:center}
-.arch-col{display:grid;gap:10px}
-.node{border:1px solid #cdd7e7;border-radius:12px;padding:13px 14px;background:white;box-shadow:0 3px 8px rgba(28,46,76,.04);min-height:77px}
-.node strong{display:block;font-size:13px;color:#1b2a42;margin-bottom:4px}
-.node span{display:block;font-size:11px;line-height:1.45;color:#627086}
-.node.front{border-color:#9cb8f8;background:#f5f8ff}.node.api{border-color:#96d5ca;background:#f1fbf9}.node.db{border-color:#d1bdfa;background:#f8f5ff}.node.worker{border-color:#f0d18a;background:#fffaf0}.node.target{border-color:#a6d8b4;background:#f2fbf4}
-.arrow{font-size:27px;text-align:center;color:#8da0bd;font-weight:300}
-.arrow-label{font-size:10px;text-align:center;color:#64748b;margin-top:-5px}
-.mini-flow{display:flex;align-items:stretch;gap:7px;flex-wrap:wrap;margin:16px 0}
-.step{flex:1 1 130px;min-width:115px;border:1px solid var(--line);border-radius:11px;padding:12px;background:#fff;position:relative}
-.step b{display:block;font-size:12px;margin-bottom:4px}.step small{font-size:11px;color:var(--muted);display:block;line-height:1.4}
-.step-num{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:7px;background:#e8efff;color:#1d4ed8;font-size:11px;font-weight:850;margin-bottom:7px}
-.step-arrow{align-self:center;color:#92a2b8;font-size:21px}
-.lanes{display:grid;grid-template-columns:150px repeat(4,minmax(0,1fr));gap:0;border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}
-.lane-head{padding:10px;background:#eaf0f8;color:#44536b;font-size:11px;font-weight:850;text-transform:uppercase;letter-spacing:.05em;border-right:1px solid var(--line)}
-.lane-label{padding:14px 10px;background:#f4f7fb;border-top:1px solid var(--line);border-right:1px solid var(--line);font-size:12px;font-weight:800;color:#3c4d66}
-.lane-cell{padding:12px;border-top:1px solid var(--line);border-right:1px solid var(--line);min-height:82px;font-size:11px;color:#56647a}
-.lane-cell:last-child{border-right:0}.lane-cell strong{display:block;color:#25344e;font-size:12px;margin-bottom:4px}
-.status-line{display:flex;flex-wrap:wrap;align-items:center;gap:7px;margin:14px 0}
-.status-node{padding:9px 12px;border-radius:10px;border:1px solid var(--line);background:#fff;font-size:12px;font-weight:800}
-.status-node.pending{background:#eef5ff;border-color:#b6cffd;color:#1d4ed8}.status-node.processing{background:#fff7e6;border-color:#efd18d;color:#8b5a05}.status-node.done{background:#eaf8ef;border-color:#a9d9b7;color:#176438}.status-node.error{background:#fff0ef;border-color:#f1b6b2;color:#a1261d}.status-node.cancel{background:#f1f3f6;color:#596579}
-.status-arrow{color:#94a3b8;font-size:20px}
-.feature-list{display:grid;gap:10px;margin:14px 0}.feature{display:grid;grid-template-columns:30px 1fr;gap:11px;align-items:start}.feature .icon{width:28px;height:28px;border-radius:9px;background:#edf2fb;color:#2453a6;display:grid;place-items:center;font-size:13px;font-weight:900}.feature strong{display:block;font-size:13px}.feature p{font-size:12px;color:var(--muted);margin:2px 0 0}
-.timeline{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:11px;margin:18px 0}
-.time-card{border-top:3px solid #8aa9e8;background:#f7f9fd;border-radius:0 0 12px 12px;padding:13px}
-.time-card h3{font-size:13px;margin:0 0 5px}.time-card p{font-size:11px;color:var(--muted);margin:0}
-.checks{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:15px 0}
-.agenda-architecture{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;align-items:stretch;margin:16px 0}
-.agenda-box{background:#fff;border:1px solid var(--line);border-radius:13px;padding:14px;min-width:0;position:relative;box-shadow:0 3px 8px rgba(28,46,76,.04)}
-.agenda-box:after{content:"→";position:absolute;right:-15px;top:42%;font-size:20px;color:#8da0bd;z-index:2}
-.agenda-box:last-child:after{display:none}
-.agenda-box strong{display:block;font-size:13px;color:#1b2a42;margin-bottom:5px}
-.agenda-box span{display:block;font-size:11px;line-height:1.5;color:#627086}
-.agenda-box.front{background:#f5f8ff;border-color:#9cb8f8}.agenda-box.api{background:#f1fbf9;border-color:#96d5ca}.agenda-box.domain{background:#f8f5ff;border-color:#d1bdfa}.agenda-box.engine{background:#fffaf0;border-color:#f0d18a}.agenda-box.worker{background:#f2fbf4;border-color:#a6d8b4}
-.agenda-split{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:16px 0}
-.agenda-tag{display:inline-block;font-size:10px;font-weight:800;border-radius:999px;padding:3px 7px;background:#eaf1ff;color:#1749ad;margin:0 4px 4px 0}
-.agenda-code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;background:#101c33;color:#e5edf8;padding:14px 16px;border-radius:12px;overflow:auto;font-size:12px;line-height:1.6;margin:12px 0}
-.agenda-note{border:1px dashed #c6d3e5;background:#f8fafd;border-radius:12px;padding:13px 15px;font-size:12px;color:#526177;margin:12px 0}
-@media(max-width:1050px){.agenda-architecture{grid-template-columns:repeat(2,minmax(0,1fr))}.agenda-box:after{display:none}}
-@media(max-width:650px){.agenda-architecture,.agenda-split{grid-template-columns:1fr}}
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1" name="viewport" />
+    <meta
+      content="CMS Scheduler design for Exam Creation tasks, Question Creation tasks and Question Review using Agenda.js, fixed IST scheduling, permissions, task locks and due-time notifications."
+      name="description"
+    />
+    <title>CMS Scheduler — Agenda.js Design (IST)</title>
+    <style>
+      :root {
+        --bg: #f4f6fa;
+        --paper: #fff;
+        --ink: #172033;
+        --muted: #64748b;
+        --line: #dce3ee;
+        --navy: #101c33;
+        --navy2: #172947;
+        --blue: #2563eb;
+        --blue-soft: #eaf1ff;
+        --teal: #0f766e;
+        --teal-soft: #e7f7f4;
+        --violet: #6d4acb;
+        --violet-soft: #f2edff;
+        --amber: #a16207;
+        --amber-soft: #fff6df;
+        --red: #b42318;
+        --red-soft: #fff0ef;
+        --green: #15803d;
+        --green-soft: #eaf8ef;
+        --shadow: 0 16px 42px rgba(20, 35, 60, 0.08);
+        --radius: 18px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font:
+          15px/1.65 Inter,
+          ui-sans-serif,
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          sans-serif;
+      }
+      a {
+        color: var(--blue);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
+      .topbar {
+        background: linear-gradient(120deg, var(--navy), #1d3457);
+        color: #fff;
+        padding: 22px max(24px, calc((100% - 1320px) / 2));
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+      }
+      .brand-mark {
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+        background: linear-gradient(135deg, #60a5fa, #5eead4);
+        display: grid;
+        place-items: center;
+        color: #0c1a30;
+        font-weight: 900;
+        font-size: 18px;
+      }
+      .topmeta {
+        font-size: 12px;
+        color: #c8d5e8;
+        text-align: right;
+      }
+      .hero {
+        background: linear-gradient(
+          120deg,
+          #101c33 0%,
+          #18375a 58%,
+          #155e75 100%
+        );
+        color: #fff;
+        padding: 52px 24px 62px;
+      }
+      .hero-inner {
+        max-width: 1220px;
+        margin: auto;
+      }
+      .eyebrow {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        font-weight: 800;
+        color: #9bd9e6;
+      }
+      h1 {
+        font-size: clamp(34px, 5vw, 58px);
+        line-height: 1.06;
+        letter-spacing: -0.04em;
+        margin: 12px 0 18px;
+        max-width: 900px;
+      }
+      .hero p {
+        font-size: 18px;
+        line-height: 1.6;
+        color: #d5e1f0;
+        max-width: 820px;
+        margin: 0;
+      }
+      .pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 25px;
+      }
+      .pill {
+        font-size: 12px;
+        font-weight: 700;
+        padding: 6px 10px;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 999px;
+        color: #e7f1ff;
+        background: rgba(255, 255, 255, 0.08);
+      }
+      .layout {
+        max-width: 1320px;
+        margin: 28px auto;
+        padding: 0 22px;
+        display: grid;
+        grid-template-columns: 245px minmax(0, 1fr);
+        gap: 25px;
+        align-items: start;
+      }
+      .toc {
+        position: sticky;
+        top: 18px;
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 18px;
+        box-shadow: 0 6px 20px rgba(20, 35, 60, 0.04);
+      }
+      .toc h2 {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--muted);
+        margin: 0 0 12px;
+      }
+      .toc a {
+        display: block;
+        padding: 7px 9px;
+        border-radius: 8px;
+        font-size: 13px;
+        color: #3c4a60;
+      }
+      .toc a:hover {
+        background: var(--blue-soft);
+        text-decoration: none;
+        color: #1749ad;
+      }
+      main {
+        min-width: 0;
+      }
+      .section {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 30px;
+        margin-bottom: 22px;
+        box-shadow: 0 6px 24px rgba(20, 35, 60, 0.035);
+        scroll-margin-top: 20px;
+      }
+      .section-kicker {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.15em;
+        color: var(--blue);
+        font-weight: 850;
+      }
+      h2 {
+        font-size: 25px;
+        line-height: 1.2;
+        letter-spacing: -0.025em;
+        margin: 7px 0 15px;
+      }
+      h3 {
+        font-size: 17px;
+        line-height: 1.3;
+        margin: 22px 0 8px;
+      }
+      p {
+        margin: 9px 0;
+        color: #354257;
+      }
+      .lead {
+        font-size: 16px;
+        color: #46546a;
+        max-width: 950px;
+      }
+      .small {
+        font-size: 13px;
+        color: var(--muted);
+      }
+      .callout {
+        border-left: 4px solid var(--blue);
+        background: var(--blue-soft);
+        padding: 15px 17px;
+        border-radius: 0 12px 12px 0;
+        margin: 17px 0;
+        color: #203a67;
+      }
+      .callout.warn {
+        border-color: #d97706;
+        background: var(--amber-soft);
+        color: #74450a;
+      }
+      .callout.good {
+        border-color: var(--green);
+        background: var(--green-soft);
+        color: #14532d;
+      }
+      .callout.danger {
+        border-color: var(--red);
+        background: var(--red-soft);
+        color: #7f1d1d;
+      }
+      .grid2 {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+        margin: 18px 0;
+      }
+      .grid3 {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+        margin: 18px 0;
+      }
+      .card {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 17px;
+        background: #fff;
+        min-width: 0;
+      }
+      .card h3 {
+        margin: 0 0 7px;
+        font-size: 15px;
+      }
+      .card p {
+        font-size: 13px;
+        margin: 0;
+        color: var(--muted);
+      }
+      .card.blue {
+        background: #f5f8ff;
+        border-color: #cbdafc;
+      }
+      .card.teal {
+        background: #f1fbf9;
+        border-color: #bee9df;
+      }
+      .card.violet {
+        background: #f8f5ff;
+        border-color: #ddd1ff;
+      }
+      .card.amber {
+        background: #fffaf0;
+        border-color: #f3dfae;
+      }
+      .kpi {
+        font-size: 26px;
+        font-weight: 850;
+        line-height: 1.2;
+        letter-spacing: -0.04em;
+        color: var(--navy);
+      }
+      .kpi-label {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 4px;
+      }
+      .table-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        margin: 15px 0;
+      }
+      table {
+        border-collapse: collapse;
+        width: 100%;
+        min-width: 680px;
+        background: #fff;
+      }
+      th,
+      td {
+        text-align: left;
+        vertical-align: top;
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--line);
+        font-size: 13px;
+      }
+      th {
+        background: #f6f8fc;
+        color: #3b4960;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      tr:last-child td {
+        border-bottom: 0;
+      }
+      code {
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        font-size: 0.91em;
+        background: #eef2f8;
+        color: #233a5d;
+        padding: 2px 5px;
+        border-radius: 5px;
+      }
+      .badge {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 3px 8px;
+        font-size: 11px;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+      .b-blue {
+        background: var(--blue-soft);
+        color: #1749ad;
+      }
+      .b-teal {
+        background: var(--teal-soft);
+        color: #0f665e;
+      }
+      .b-amber {
+        background: var(--amber-soft);
+        color: #80520c;
+      }
+      .b-red {
+        background: var(--red-soft);
+        color: #a1261d;
+      }
+      .b-green {
+        background: var(--green-soft);
+        color: #176438;
+      }
+      .b-grey {
+        background: #eef1f5;
+        color: #4b5563;
+      }
+      .diagram {
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: linear-gradient(180deg, #fbfcff, #f5f8fd);
+        padding: 20px;
+        margin: 18px 0;
+        overflow: hidden;
+      }
+      .diagram-title {
+        font-size: 13px;
+        font-weight: 850;
+        color: #41516a;
+        margin: 0 0 15px;
+        letter-spacing: 0.02em;
+      }
+      .arch {
+        display: grid;
+        grid-template-columns: 1fr 45px 1fr 45px 1fr;
+        gap: 7px;
+        align-items: center;
+      }
+      .arch-col {
+        display: grid;
+        gap: 10px;
+      }
+      .node {
+        border: 1px solid #cdd7e7;
+        border-radius: 12px;
+        padding: 13px 14px;
+        background: white;
+        box-shadow: 0 3px 8px rgba(28, 46, 76, 0.04);
+        min-height: 77px;
+      }
+      .node strong {
+        display: block;
+        font-size: 13px;
+        color: #1b2a42;
+        margin-bottom: 4px;
+      }
+      .node span {
+        display: block;
+        font-size: 11px;
+        line-height: 1.45;
+        color: #627086;
+      }
+      .node.front {
+        border-color: #9cb8f8;
+        background: #f5f8ff;
+      }
+      .node.api {
+        border-color: #96d5ca;
+        background: #f1fbf9;
+      }
+      .node.db {
+        border-color: #d1bdfa;
+        background: #f8f5ff;
+      }
+      .node.worker {
+        border-color: #f0d18a;
+        background: #fffaf0;
+      }
+      .node.target {
+        border-color: #a6d8b4;
+        background: #f2fbf4;
+      }
+      .arrow {
+        font-size: 27px;
+        text-align: center;
+        color: #8da0bd;
+        font-weight: 300;
+      }
+      .arrow-label {
+        font-size: 10px;
+        text-align: center;
+        color: #64748b;
+        margin-top: -5px;
+      }
+      .mini-flow {
+        display: flex;
+        align-items: stretch;
+        gap: 7px;
+        flex-wrap: wrap;
+        margin: 16px 0;
+      }
+      .step {
+        flex: 1 1 130px;
+        min-width: 115px;
+        border: 1px solid var(--line);
+        border-radius: 11px;
+        padding: 12px;
+        background: #fff;
+        position: relative;
+      }
+      .step b {
+        display: block;
+        font-size: 12px;
+        margin-bottom: 4px;
+      }
+      .step small {
+        font-size: 11px;
+        color: var(--muted);
+        display: block;
+        line-height: 1.4;
+      }
+      .step-num {
+        display: inline-grid;
+        place-items: center;
+        width: 22px;
+        height: 22px;
+        border-radius: 7px;
+        background: #e8efff;
+        color: #1d4ed8;
+        font-size: 11px;
+        font-weight: 850;
+        margin-bottom: 7px;
+      }
+      .step-arrow {
+        align-self: center;
+        color: #92a2b8;
+        font-size: 21px;
+      }
+      .lanes {
+        display: grid;
+        grid-template-columns: 150px repeat(4, minmax(0, 1fr));
+        gap: 0;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+        background: #fff;
+      }
+      .lane-head {
+        padding: 10px;
+        background: #eaf0f8;
+        color: #44536b;
+        font-size: 11px;
+        font-weight: 850;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        border-right: 1px solid var(--line);
+      }
+      .lane-label {
+        padding: 14px 10px;
+        background: #f4f7fb;
+        border-top: 1px solid var(--line);
+        border-right: 1px solid var(--line);
+        font-size: 12px;
+        font-weight: 800;
+        color: #3c4d66;
+      }
+      .lane-cell {
+        padding: 12px;
+        border-top: 1px solid var(--line);
+        border-right: 1px solid var(--line);
+        min-height: 82px;
+        font-size: 11px;
+        color: #56647a;
+      }
+      .lane-cell:last-child {
+        border-right: 0;
+      }
+      .lane-cell strong {
+        display: block;
+        color: #25344e;
+        font-size: 12px;
+        margin-bottom: 4px;
+      }
+      .status-line {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 7px;
+        margin: 14px 0;
+      }
+      .status-node {
+        padding: 9px 12px;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: #fff;
+        font-size: 12px;
+        font-weight: 800;
+      }
+      .status-node.pending {
+        background: #eef5ff;
+        border-color: #b6cffd;
+        color: #1d4ed8;
+      }
+      .status-node.processing {
+        background: #fff7e6;
+        border-color: #efd18d;
+        color: #8b5a05;
+      }
+      .status-node.done {
+        background: #eaf8ef;
+        border-color: #a9d9b7;
+        color: #176438;
+      }
+      .status-node.error {
+        background: #fff0ef;
+        border-color: #f1b6b2;
+        color: #a1261d;
+      }
+      .status-node.cancel {
+        background: #f1f3f6;
+        color: #596579;
+      }
+      .status-arrow {
+        color: #94a3b8;
+        font-size: 20px;
+      }
+      .feature-list {
+        display: grid;
+        gap: 10px;
+        margin: 14px 0;
+      }
+      .feature {
+        display: grid;
+        grid-template-columns: 30px 1fr;
+        gap: 11px;
+        align-items: start;
+      }
+      .feature .icon {
+        width: 28px;
+        height: 28px;
+        border-radius: 9px;
+        background: #edf2fb;
+        color: #2453a6;
+        display: grid;
+        place-items: center;
+        font-size: 13px;
+        font-weight: 900;
+      }
+      .feature strong {
+        display: block;
+        font-size: 13px;
+      }
+      .feature p {
+        font-size: 12px;
+        color: var(--muted);
+        margin: 2px 0 0;
+      }
+      .timeline {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 11px;
+        margin: 18px 0;
+      }
+      .time-card {
+        border-top: 3px solid #8aa9e8;
+        background: #f7f9fd;
+        border-radius: 0 0 12px 12px;
+        padding: 13px;
+      }
+      .time-card h3 {
+        font-size: 13px;
+        margin: 0 0 5px;
+      }
+      .time-card p {
+        font-size: 11px;
+        color: var(--muted);
+        margin: 0;
+      }
+      .checks {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin: 15px 0;
+      }
+      .agenda-architecture {
+        display: grid;
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 10px;
+        align-items: stretch;
+        margin: 16px 0;
+      }
+      .agenda-box {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 13px;
+        padding: 14px;
+        min-width: 0;
+        position: relative;
+        box-shadow: 0 3px 8px rgba(28, 46, 76, 0.04);
+      }
+      .agenda-box:after {
+        content: "→";
+        position: absolute;
+        right: -15px;
+        top: 42%;
+        font-size: 20px;
+        color: #8da0bd;
+        z-index: 2;
+      }
+      .agenda-box:last-child:after {
+        display: none;
+      }
+      .agenda-box strong {
+        display: block;
+        font-size: 13px;
+        color: #1b2a42;
+        margin-bottom: 5px;
+      }
+      .agenda-box span {
+        display: block;
+        font-size: 11px;
+        line-height: 1.5;
+        color: #627086;
+      }
+      .agenda-box.front {
+        background: #f5f8ff;
+        border-color: #9cb8f8;
+      }
+      .agenda-box.api {
+        background: #f1fbf9;
+        border-color: #96d5ca;
+      }
+      .agenda-box.domain {
+        background: #f8f5ff;
+        border-color: #d1bdfa;
+      }
+      .agenda-box.engine {
+        background: #fffaf0;
+        border-color: #f0d18a;
+      }
+      .agenda-box.worker {
+        background: #f2fbf4;
+        border-color: #a6d8b4;
+      }
+      .agenda-split {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 14px;
+        margin: 16px 0;
+      }
+      .agenda-tag {
+        display: inline-block;
+        font-size: 10px;
+        font-weight: 800;
+        border-radius: 999px;
+        padding: 3px 7px;
+        background: #eaf1ff;
+        color: #1749ad;
+        margin: 0 4px 4px 0;
+      }
+      .agenda-code {
+        font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+        background: #101c33;
+        color: #e5edf8;
+        padding: 14px 16px;
+        border-radius: 12px;
+        overflow: auto;
+        font-size: 12px;
+        line-height: 1.6;
+        margin: 12px 0;
+      }
+      .agenda-note {
+        border: 1px dashed #c6d3e5;
+        background: #f8fafd;
+        border-radius: 12px;
+        padding: 13px 15px;
+        font-size: 12px;
+        color: #526177;
+        margin: 12px 0;
+      }
+      @media (max-width: 1050px) {
+        .agenda-architecture {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .agenda-box:after {
+          display: none;
+        }
+      }
+      @media (max-width: 650px) {
+        .agenda-architecture,
+        .agenda-split {
+          grid-template-columns: 1fr;
+        }
+      }
 
-.check{border:1px solid var(--line);border-radius:11px;padding:12px 13px;background:#fff;font-size:12px;color:#42516a}
-.check strong{display:block;color:#20304a;margin-bottom:3px}
-.footer{max-width:1320px;margin:0 auto 40px;padding:0 22px;color:#78869a;font-size:12px}
-@media(max-width:1050px){.layout{grid-template-columns:1fr}.toc{position:static;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2px}.toc h2{grid-column:1/-1}.arch{grid-template-columns:1fr}.arrow{transform:rotate(90deg);line-height:1}.arrow-label{display:none}.timeline{grid-template-columns:repeat(2,minmax(0,1fr))}}
-@media(max-width:650px){.topbar{padding:16px 18px}.topmeta{display:none}.hero{padding:38px 19px 44px}.layout{padding:0 12px;margin:14px auto}.section{padding:21px 17px;margin-bottom:14px}.toc{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2,.grid3,.checks{grid-template-columns:1fr}.lanes{grid-template-columns:105px repeat(4,minmax(125px,1fr));overflow-x:auto}.timeline{grid-template-columns:1fr}.mini-flow{display:grid;grid-template-columns:1fr}.step-arrow{transform:rotate(90deg);justify-self:center}.diagram{padding:13px}}
-@media print{body{background:#fff;font-size:11pt}.topbar{padding:12px 20px}.hero{padding:28px 24px}.layout{display:block;max-width:none;margin:0;padding:0}.toc{display:none}.section{box-shadow:none;border:1px solid #d7dce4;break-inside:avoid;margin:12px 0;padding:20px}.diagram{break-inside:avoid}.footer{margin:15px 0}.section h2{font-size:20px}a{color:inherit}.hero{print-color-adjust:exact;-webkit-print-color-adjust:exact}}
+      .check {
+        border: 1px solid var(--line);
+        border-radius: 11px;
+        padding: 12px 13px;
+        background: #fff;
+        font-size: 12px;
+        color: #42516a;
+      }
+      .check strong {
+        display: block;
+        color: #20304a;
+        margin-bottom: 3px;
+      }
+      .footer {
+        max-width: 1320px;
+        margin: 0 auto 40px;
+        padding: 0 22px;
+        color: #78869a;
+        font-size: 12px;
+      }
+      @media (max-width: 1050px) {
+        .layout {
+          grid-template-columns: 1fr;
+        }
+        .toc {
+          position: static;
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 2px;
+        }
+        .toc h2 {
+          grid-column: 1/-1;
+        }
+        .arch {
+          grid-template-columns: 1fr;
+        }
+        .arrow {
+          transform: rotate(90deg);
+          line-height: 1;
+        }
+        .arrow-label {
+          display: none;
+        }
+        .timeline {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      @media (max-width: 650px) {
+        .topbar {
+          padding: 16px 18px;
+        }
+        .topmeta {
+          display: none;
+        }
+        .hero {
+          padding: 38px 19px 44px;
+        }
+        .layout {
+          padding: 0 12px;
+          margin: 14px auto;
+        }
+        .section {
+          padding: 21px 17px;
+          margin-bottom: 14px;
+        }
+        .toc {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .grid2,
+        .grid3,
+        .checks {
+          grid-template-columns: 1fr;
+        }
+        .lanes {
+          grid-template-columns: 105px repeat(4, minmax(125px, 1fr));
+          overflow-x: auto;
+        }
+        .timeline {
+          grid-template-columns: 1fr;
+        }
+        .mini-flow {
+          display: grid;
+          grid-template-columns: 1fr;
+        }
+        .step-arrow {
+          transform: rotate(90deg);
+          justify-self: center;
+        }
+        .diagram {
+          padding: 13px;
+        }
+      }
+      @media print {
+        body {
+          background: #fff;
+          font-size: 11pt;
+        }
+        .topbar {
+          padding: 12px 20px;
+        }
+        .hero {
+          padding: 28px 24px;
+        }
+        .layout {
+          display: block;
+          max-width: none;
+          margin: 0;
+          padding: 0;
+        }
+        .toc {
+          display: none;
+        }
+        .section {
+          box-shadow: none;
+          border: 1px solid #d7dce4;
+          break-inside: avoid;
+          margin: 12px 0;
+          padding: 20px;
+        }
+        .diagram {
+          break-inside: avoid;
+        }
+        .footer {
+          margin: 15px 0;
+        }
+        .section h2 {
+          font-size: 20px;
+        }
+        a {
+          color: inherit;
+        }
+        .hero {
+          print-color-adjust: exact;
+          -webkit-print-color-adjust: exact;
+        }
+      }
 
-/* Confirmed scheduler flow diagrams */
-.flow-stack{display:grid;gap:9px;margin:16px auto;max-width:980px}
-.flow-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
-.flow-card{border:1px solid var(--line);border-radius:13px;background:#fff;padding:14px;min-width:0;box-shadow:0 3px 8px rgba(28,46,76,.04)}
-.flow-card strong{display:block;font-size:13px;color:#1b2a42;margin-bottom:5px}
-.flow-card span{display:block;font-size:11px;line-height:1.5;color:#627086}
-.flow-card.blue{background:#f5f8ff;border-color:#9cb8f8}
-.flow-card.teal{background:#f1fbf9;border-color:#96d5ca}
-.flow-card.violet{background:#f8f5ff;border-color:#d1bdfa}
-.flow-card.amber{background:#fffaf0;border-color:#f0d18a}
-.flow-card.green{background:#f2fbf4;border-color:#a6d8b4}
-.flow-card.red{background:#fff4f2;border-color:#efb5ad}
-.flow-down{text-align:center;color:#8da0bd;font-size:24px;line-height:1;font-weight:300}
-.flow-caption{font-size:11px;color:var(--muted);text-align:center;margin:-3px 0 2px}
-.branch-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:14px 0}
-.branch{border:1px solid var(--line);border-radius:14px;padding:15px;background:#fff;min-width:0}
-.branch h3{font-size:14px;margin:0 0 7px}
-.branch p{font-size:12px;color:var(--muted);margin:0}
-.rule-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:15px 0}
-.rule{border:1px solid var(--line);border-radius:13px;padding:14px;background:#fff}
-.rule strong{display:flex;gap:8px;align-items:center;font-size:13px;margin-bottom:5px}
-.rule p{font-size:12px;color:var(--muted);margin:0}
-.rule .rule-icon{display:grid;place-items:center;width:24px;height:24px;border-radius:8px;background:#eaf1ff;color:#1749ad;font-weight:900;font-size:12px;flex:0 0 24px}
+      /* Confirmed scheduler flow diagrams */
+      .flow-stack {
+        display: grid;
+        gap: 9px;
+        margin: 16px auto;
+        max-width: 980px;
+      }
+      .flow-row {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .flow-card {
+        border: 1px solid var(--line);
+        border-radius: 13px;
+        background: #fff;
+        padding: 14px;
+        min-width: 0;
+        box-shadow: 0 3px 8px rgba(28, 46, 76, 0.04);
+      }
+      .flow-card strong {
+        display: block;
+        font-size: 13px;
+        color: #1b2a42;
+        margin-bottom: 5px;
+      }
+      .flow-card span {
+        display: block;
+        font-size: 11px;
+        line-height: 1.5;
+        color: #627086;
+      }
+      .flow-card.blue {
+        background: #f5f8ff;
+        border-color: #9cb8f8;
+      }
+      .flow-card.teal {
+        background: #f1fbf9;
+        border-color: #96d5ca;
+      }
+      .flow-card.violet {
+        background: #f8f5ff;
+        border-color: #d1bdfa;
+      }
+      .flow-card.amber {
+        background: #fffaf0;
+        border-color: #f0d18a;
+      }
+      .flow-card.green {
+        background: #f2fbf4;
+        border-color: #a6d8b4;
+      }
+      .flow-card.red {
+        background: #fff4f2;
+        border-color: #efb5ad;
+      }
+      .flow-down {
+        text-align: center;
+        color: #8da0bd;
+        font-size: 24px;
+        line-height: 1;
+        font-weight: 300;
+      }
+      .flow-caption {
+        font-size: 11px;
+        color: var(--muted);
+        text-align: center;
+        margin: -3px 0 2px;
+      }
+      .branch-grid.action-branches {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .branch-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        margin: 14px 0;
+      }
+      .branch {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 15px;
+        background: #fff;
+        min-width: 0;
+      }
+      .branch h3 {
+        font-size: 14px;
+        margin: 0 0 7px;
+      }
+      .branch p {
+        font-size: 12px;
+        color: var(--muted);
+        margin: 0;
+      }
+      .rule-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+        margin: 15px 0;
+      }
+      .rule {
+        border: 1px solid var(--line);
+        border-radius: 13px;
+        padding: 14px;
+        background: #fff;
+      }
+      .rule strong {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        font-size: 13px;
+        margin-bottom: 5px;
+      }
+      .rule p {
+        font-size: 12px;
+        color: var(--muted);
+        margin: 0;
+      }
+      .rule .rule-icon {
+        display: grid;
+        place-items: center;
+        width: 24px;
+        height: 24px;
+        border-radius: 8px;
+        background: #eaf1ff;
+        color: #1749ad;
+        font-weight: 900;
+        font-size: 12px;
+        flex: 0 0 24px;
+      }
 
-.scope-pill{display:inline-flex;align-items:center;border-radius:999px;padding:4px 8px;font-weight:800;font-size:10px;background:#eef2f8;color:#40516b;margin:2px 3px 2px 0}
-.lock-flow{display:grid;grid-template-columns:1fr 34px 1fr 34px 1fr;gap:8px;align-items:center;margin:16px 0}
-.lock-box{border:1px solid var(--line);border-radius:12px;padding:13px;background:#fff;text-align:center;min-width:0}
-.lock-box strong{display:block;font-size:12px;color:#24344e}
-.lock-box span{display:block;font-size:11px;color:var(--muted);margin-top:4px}
-.lock-arrow{text-align:center;font-size:21px;color:#94a3b8}
-@media(max-width:900px){.flow-row,.branch-grid{grid-template-columns:1fr}.agenda-architecture{grid-template-columns:1fr 1fr}.agenda-box:after{display:none}.lock-flow{grid-template-columns:1fr}.lock-arrow{transform:rotate(90deg)}}
-@media(max-width:650px){.rule-grid{grid-template-columns:1fr}.flow-card{padding:12px}.section{padding:20px}.layout{display:block}.toc{position:static;margin-bottom:18px}}
-.b-violet{background:var(--violet-soft);color:#5734a5}</style>
-</head>
-<body>
-<header class="topbar">
-<div class="brand"><div class="brand-mark">S</div><div>QUESTION SERVICE <span style="color:#91a8c8;font-weight:500">/ Architecture Proposal</span></div></div>
-<div class="topmeta">Confirmed requirement review · 27 Nov 2026<br/>Repository baseline: dev-testing · 9e21a132<br/>Scheduler engine: Agenda.js + MongoDB</div>
-</header>
-<section class="hero">
-<div class="hero-inner">
-<div class="eyebrow">Scheduler workflow · Agenda-powered scheduling · IST</div>
-<h1>CMS Scheduler</h1>
-<p>A permission-controlled way to prepare a task or question workflow action now and execute it at a chosen future date and time. Until that time, the mentor receives no assignment access and no assignment notification.</p>
-<div class="pills"><span class="pill">Task Assignment</span><span class="pill">Question Review</span><span class="pill">Send for Publish</span><span class="pill">Scheduler Permission</span><span class="pill">Creator / Admin Controls</span><span class="pill">Task Edit Lock</span><span class="pill">Agenda.js + MongoDB</span></div>
-</div>
-</section>
-<div class="layout">
-<nav aria-label="Contents" class="toc"><h2>On this page</h2><a href="#overview">01 · Requirement at a glance</a><a href="#current">02 · Existing CMS workflows</a><a href="#architecture">03 · Agenda architecture</a><a href="#lifecycle">04 · Complete execution flow</a><a href="#actions">05 · Action-specific behaviour</a><a href="#storage">06 · Data and task lock</a><a href="#worker">07 · Agenda job execution</a><a href="#permission">08 · Permission and visibility</a><a href="#page">09 · Scheduler page</a><a href="#time">10 · Date and timezone</a><a href="#reliability">11 · Safety and edge cases</a></nav>
-<main>
-<section class="section" id="overview">
-<div class="section-kicker">01 · Confirmed requirement</div>
-<h2>What the CMS Scheduler must do</h2>
-<p class="lead">A person with the new <strong>Scheduler permission</strong> can schedule an allowed CMS action for a future date and time. The action must not become a real mentor assignment before that time. Agenda.js executes it when it becomes due, and the existing CMS workflow performs the actual assignment, review or send-for-publish operation.</p>
-<div class="grid3">
-<div class="card blue"><div class="kpi">Create</div><div class="kpi-label">Schedule the action now</div><p>Choose one existing operation, its target/mentor details and the future date/time.</p></div>
-<div class="card amber"><div class="kpi">Wait</div><div class="kpi-label">No early side effects</div><p>No real assignment, mentor access or workflow notification is created before the due time.</p></div>
-<div class="card teal"><div class="kpi">Execute</div><div class="kpi-label">Run the existing CMS flow</div><p>At or after the due time, validate and perform the normal CMS action, then notify its intended recipients.</p></div>
-</div>
-<div class="callout good"><strong>Core design rule:</strong> the Scheduler stores an instruction for a future action. It does not create a second task, review or publishing workflow. At the scheduled time, it calls the existing workflow that already knows how to decide eligibility and update CMS records.</div>
-<h3>Initial action types in scope</h3>
-<div class="table-wrap"><table><thead><tr><th>Scheduled action</th><th>What happens at the scheduled time</th><th>Notification timing</th></tr></thead><tbody>
-<tr><td><strong>Exam Creation task</strong></td><td>Apply the task, set and section coordinator assignment plan, then activate the task using the existing task workflow.</td><td>Only at execution: task coordinator, all applicable set coordinators and section coordinators.</td></tr>
-<tr><td><strong>Question Creation task</strong></td><td>Apply the task and set coordinator assignments, then activate the task using the existing task workflow.</td><td>Only at execution: task coordinator and all applicable set coordinators.</td></tr>
-<tr><td><strong>Question Review</strong></td><td>Run the existing review eligibility and assignment flow. Only the version that is eligible under the current review rules should enter review.</td><td>Only when the actual review assignment is created.</td></tr>
-<tr><td><strong>Question Send for Publish</strong></td><td>Call the existing send-for-publish workflow. Existing CMS code decides which question/version is eligible to be sent.</td><td>Only when the existing send-for-publish workflow runs.</td></tr>
-</tbody></table></div>
-<div class="callout warn"><strong>No new bulk-scheduling feature:</strong> the Scheduler creates one scheduled action for one normal CMS assignment/workflow operation at a time. It will not introduce a separate bulk-schedule builder, multi-schedule wizard or CSV scheduling flow. If an existing CMS action already supports selecting several questions as one review operation, the Scheduler can wrap that existing operation without adding a new bulk feature.</div>
-</section>
-<section class="section" id="current">
-<div class="section-kicker">02 · Existing CMS foundation</div>
-<h2>Reuse the workflows already in Question Service</h2>
-<p>The Scheduler should sit in front of the current workflows. The scheduled record holds the future intent; the current controllers/services remain responsible for the actual domain changes.</p>
-<div class="grid2">
-<div class="card"><h3>Task creation and activation</h3><p>Exam Creation and Question Creation tasks already have task, set and coordinator concepts. The Scheduler must hold the intended coordinator map separately and only write real assignments when the Agenda job executes.</p></div>
-<div class="card"><h3>Coordinator notifications</h3><p>At due time, the existing task activation/assignment flow should notify the Task Coordinator, all assigned Set Coordinators and all assigned Section Coordinators. No task-assignment notification goes out when the schedule is first saved.</p></div>
-<div class="card"><h3>Question Review</h3><p>Review already has eligibility and assignment logic. Do not create a parallel version picker in the Scheduler. At execution, call the existing review path; if a selected question is no longer eligible, skip/remove that question from this scheduled review and record why.</p></div>
-<div class="card"><h3>Send for Publish</h3><p>Publishing-related eligibility and version selection already exist. The Scheduler only delays the existing send-for-publish action; it must not reproduce the rules or call the final publish operation.</p></div>
-</div>
-<h3>Existing integration points to preserve</h3>
-<div class="table-wrap"><table><thead><tr><th>Workflow</th><th>Known current integration point</th><th>Scheduler responsibility</th></tr></thead><tbody>
-<tr><td>Task creation</td><td><code>controllers/task/task.controller.js</code> → <code>createTask</code></td><td>Create/retain the task as draft and create the schedule record. Do not make mentor assignments live.</td></tr>
-<tr><td>Coordinator assignment</td><td>Task controller coordinator assignment logic; <code>Task.taskCoordinatorId</code>, <code>TaskSet.coordinatorIds</code>, section coordinator data</td><td>Persist intended coordinator IDs only in the schedule payload; apply them to the real Task/TaskSet/section records at due time.</td></tr>
-<tr><td>Task activation</td><td>Task controller <code>activateTask</code> and <code>task.services.js</code></td><td>Invoke existing activation after assignments are applied; rely on the normal task visibility/notification workflow.</td></tr>
-<tr><td>Question review</td><td>Direct question request-review and task-set reviewer assignment routes</td><td>Call the existing review-eligibility/assignment path at due time. Do not pin or invent an alternative question version selection rule.</td></tr>
-<tr><td>Send for Publish</td><td>Existing send-for-publish / ready-to-publish controller flow</td><td>Invoke the existing action at due time and leave its question/version selection logic untouched.</td></tr>
-</tbody></table></div>
-<div class="callout good"><strong>Compatibility principle:</strong> “Schedule” should behave like “do the normal action later”. It should not fork or duplicate task activation, question review eligibility, publishing eligibility, access checks or notification templates.</div>
-</section>
-<section class="section" id="architecture">
-<div class="section-kicker">03 · Solution design</div>
-<h2>Recommended architecture with Agenda.js</h2>
-<p class="lead">Use <strong>Agenda.js with its MongoDB backend</strong> as the durable delayed-job engine. Question Service still owns the Scheduler permission, the business record, the task edit lock, visibility rules and the action-specific execution logic.</p>
-<div class="diagram">
-<div class="diagram-title">END-TO-END ARCHITECTURE · FROM CMS ACTION TO MENTOR NOTIFICATION</div>
-<div class="flow-stack">
-<div class="flow-row">
-<div class="flow-card blue"><strong>1 · Existing CMS screen</strong><span>Task assignment, Question Review or Send for Publish. User chooses Schedule and a date/time.</span></div>
-<div class="flow-card teal"><strong>2 · Scheduler API</strong><span>Checks Scheduler permission, action-specific permission, ownership, target and scheduled time.</span></div>
-<div class="flow-card violet"><strong>3 · CMS business record</strong><span>Creates ScheduledAction. For a task, sets a schedule lock so task configuration cannot be edited.</span></div>
-</div>
-<div class="flow-down">↓</div><div class="flow-caption">The Scheduler API then persists a matching delayed Agenda job.</div>
-<div class="flow-row">
-<div class="flow-card amber"><strong>4 · Agenda + MongoDB</strong><span>Stores a one-time job in <code>agendaJobs</code> with the ScheduledAction ID and revision.</span></div>
-<div class="flow-card amber"><strong>5 · Waiting period</strong><span>Agenda waits for the due time. No mentor assignment, no mentor access and no action notification.</span></div>
-<div class="flow-card blue"><strong>6 · Agenda processor</strong><span>Locks the due job, loads the ScheduledAction and atomically claims it for execution.</span></div>
-</div>
-<div class="flow-down">↓</div><div class="flow-caption">The processor dispatches to the existing domain workflow—not a new copy of it.</div>
-<div class="branch-grid">
-<div class="branch"><h3>Task Assignment</h3><p>Apply Task Coordinator + Set Coordinators + Section Coordinators, activate task, then issue coordinator notifications.</p></div>
-<div class="branch"><h3>Question Review</h3><p>Run existing eligibility logic. Eligible version goes to review; no-longer-eligible item is skipped and reported.</p></div>
-<div class="branch"><h3>Send for Publish</h3><p>Call the existing send-for-publish workflow; it determines the eligible question/version itself.</p></div>
-</div>
-<div class="flow-down">↓</div>
-<div class="flow-row">
-<div class="flow-card green"><strong>7 · Real CMS action</strong><span>Persist normal assignment/review/publish-queue state. Mentor access starts only now.</span></div>
-<div class="flow-card green"><strong>8 · Notifications</strong><span>Send the existing workflow notifications at execution time to the relevant coordinator/reviewer/approval recipients.</span></div>
-<div class="flow-card teal"><strong>9 · Scheduler result</strong><span>Record Completed / Partial / Action Required / Failed and show the outcome in the Scheduler page.</span></div>
-</div>
-</div>
-</div>
-<div class="agenda-note"><strong>Two MongoDB collections, two responsibilities:</strong> <code>scheduledActions</code> is the CMS business record used for ownership, permissions, display, task locking and audit. Agenda's <code>agendaJobs</code> collection is the internal execution queue. The CMS UI must read <code>scheduledActions</code>, not expose raw Agenda job documents.</div>
-<div class="agenda-split">
-<div class="card violet"><h3>Agenda's responsibility</h3><p>Persist the delayed job, discover it when due, lock it for processing, coordinate concurrency and apply configured retry/backoff.</p></div>
-<div class="card teal"><h3>Question Service's responsibility</h3><p>Check who may schedule/view/manage, lock the task, decide which existing business workflow to invoke, enforce idempotency and deliver normal CMS notifications.</p></div>
-</div>
-<h3>Packages and fit with the current backend</h3>
-<div class="table-wrap"><table><thead><tr><th>Component</th><th>Responsibility</th><th>Why it fits</th></tr></thead><tbody>
-<tr><td><code>agenda</code></td><td>Job definitions, delayed scheduling, processing lifecycle, locking and concurrency.</td><td>Current backend uses ES modules and Node 22; Agenda 6 is ESM and requires Node 18+.</td></tr>
-<tr><td><code>@agendajs/mongo-backend</code></td><td>Persists Agenda jobs in MongoDB.</td><td>Uses MongoDB for durable job state; confirm compatibility with the current application's MongoDB driver and shared Db connection during implementation.</td></tr>
-<tr><td><code>ScheduledAction</code> (new CMS model)</td><td>Business record, createdBy ownership, action type, schedule time, status, target payload, task lock reference and audit.</td><td>Agenda jobs are engine records and are not a substitute for a CMS-owned scheduler listing.</td></tr>
-<tr><td>Agenda processor</td><td>Loads a ScheduledAction and delegates to the existing task/review/publish workflow.</td><td>One dispatcher can support current action types and future ones without copying domain logic.</td></tr>
-</tbody></table></div>
-<div class="callout good"><strong>Agenda 6 design note:</strong> v6 uses the separate <code>agenda</code> and <code>@agendajs/mongo-backend</code> packages. Its MongoDB backend polls for due jobs; optional notification channels are a separate feature. Start with the MongoDB backend and choose <code>processEvery</code> according to the acceptable dispatch delay. The requirement is “never before the scheduled time”; exact millisecond execution is not a realistic guarantee.</div>
-<h3>Official Agenda references</h3>
-<ul>
-<li><a href="https://agenda.github.io/agenda/" rel="noopener" target="_blank">Agenda 6.2.8 documentation</a> — setup, schedule(), now(), processEvery, concurrency and backends.</li>
-<li><a href="https://github.com/agenda/agenda/blob/main/docs/migration-guide-v6.md" rel="noopener" target="_blank">Agenda v6 migration guide</a> — ESM-only package and separate backend package design.</li>
-<li><a href="https://github.com/agenda/agenda/blob/main/packages/mongo-backend/README.md" rel="noopener" target="_blank">Agenda MongoDB backend README</a> — MongoDB connection and job collection configuration.</li>
-</ul>
-</section>
-<section class="section" id="lifecycle">
-<div class="section-kicker">04 · Complete flow</div>
-<h2>What happens before, at and after the scheduled time?</h2>
-<p class="lead">The browser only creates and manages the schedule. The backend worker executes it. The mentor is not assigned and notified until the Agenda job becomes due and the existing CMS workflow succeeds.</p>
-<div class="diagram">
-<div class="diagram-title">SCHEDULER LIFECYCLE · MANAGER, CMS, AGENDA AND MENTOR</div>
-<div class="flow-stack">
-<div class="flow-row">
-<div class="flow-card blue"><strong>Manager · choose action</strong><span>Starts from Task Assignment, Question Review or Send for Publish.</span></div>
-<div class="flow-card teal"><strong>CMS · authorize</strong><span>Require Scheduler permission plus the matching task/question permission. Only the creator or Admin can later Cancel or Send Now.</span></div>
-<div class="flow-card violet"><strong>CMS · save intent</strong><span>Writes a ScheduledAction with creator, target, recipients and the selected IST date/time.</span></div>
-</div>
-<div class="flow-down">↓</div>
-<div class="flow-row">
-<div class="flow-card amber"><strong>Task lock (task actions)</strong><span>Task, sets, sections and coordinator configuration become read-only. The creator or Admin must Cancel before editing.</span></div>
-<div class="flow-card amber"><strong>Agenda schedule()</strong><span>Persists one delayed job for the IST-selected instant, normalized to UTC and linked to the ScheduledAction.</span></div>
-<div class="flow-card red"><strong>Mentor · nothing yet</strong><span>No assignment, no visible task/review and no assignment notification before due time.</span></div>
-</div>
-<div class="flow-down">↓</div>
-<div class="flow-row">
-<div class="flow-card amber"><strong>Due time reached</strong><span>Agenda finds and locks the job. A small processing delay is possible; an early run is not allowed.</span></div>
-<div class="flow-card teal"><strong>Revalidate &amp; claim</strong><span>Check schedule still SCHEDULED, action remains valid and execution has not already happened.</span></div>
-<div class="flow-card blue"><strong>Call existing workflow</strong><span>Apply assignment, run existing review eligibility (skip a changed review target) or Send for Publish using existing CMS rules.</span></div>
-</div>
-<div class="flow-down">↓</div>
-<div class="flow-row">
-<div class="flow-card green"><strong>Persist actual state</strong><span>Task becomes active / review is created / question enters existing publish approval flow.</span></div>
-<div class="flow-card green"><strong>Send notifications</strong><span>Only after the existing CMS action succeeds: notify Task, Set and Section Coordinators as applicable, or the review/publish recipients.</span></div>
-<div class="flow-card green"><strong>Finish &amp; audit</strong><span>ScheduledAction records result, timestamps, attempts and any skipped/failed reason.</span></div>
-</div>
-</div>
-</div>
-<div class="callout good"><strong>Time convention:</strong> the date and time chosen in the CMS are always interpreted and displayed in <strong>IST (Asia/Kolkata)</strong>. The backend converts that IST time to a UTC execution instant for Agenda; the worker never uses the server machine timezone to decide when the action is due.</div>
-<h3>What the mentor can see at each point</h3>
-<div class="table-wrap"><table><thead><tr><th>Time/state</th><th>Task assignment exists for mentor?</th><th>Mentor can access the work?</th><th>Notification sent?</th></tr></thead><tbody>
-<tr><td>Before due · SCHEDULED</td><td>No</td><td><span class="badge b-red">No</span></td><td><span class="badge b-red">No</span></td></tr>
-<tr><td>Due · PROCESSING</td><td>Being created by existing workflow</td><td>Not until the workflow commits the assignment</td><td>Only after successful assignment</td></tr>
-<tr><td>After successful execution · COMPLETED</td><td>Yes</td><td><span class="badge b-green">Yes</span></td><td><span class="badge b-green">Yes</span></td></tr>
-<tr><td>Cancelled before due · CANCELLED</td><td>No</td><td><span class="badge b-red">No</span></td><td><span class="badge b-red">No</span></td></tr>
-</tbody></table></div>
-<div class="callout danger"><strong>Never implement “hide it until later” as the only protection.</strong> Do not write reviewer IDs, Task Coordinator IDs, TaskSet coordinator IDs, Section Coordinator IDs, active task access or review records at schedule creation. Existing backend role checks or APIs could still expose a prematurely assigned record. Keep the real assignment state absent until execution.</div>
-</section>
-<section class="section" id="actions">
-<div class="section-kicker">05 · Action-specific behaviour</div>
-<h2>How each scheduled action behaves</h2>
-<h3>A. Exam Creation and Question Creation task assignment</h3>
-<div class="mini-flow">
-<div class="step"><span class="step-num">1</span><b>Prepare task</b><small>Create or select the draft task and configure its sets/sections as usual.</small></div><div class="step-arrow">→</div>
-<div class="step"><span class="step-num">2</span><b>Choose coordinators</b><small>Choose Task Coordinator, each Set Coordinator and, for Exam Creation, each Section Coordinator.</small></div><div class="step-arrow">→</div>
-<div class="step"><span class="step-num">3</span><b>Schedule in IST</b><small>Store the intended coordinator map and IST date/time in ScheduledAction. Apply a task edit lock.</small></div><div class="step-arrow">→</div>
-<div class="step"><span class="step-num">4</span><b>At due time</b><small>Apply all coordinator assignments, activate through the existing task flow and send its notifications.</small></div>
-</div>
-<div class="diagram"><div class="diagram-title">TASK NOTIFICATION FLOW · ONLY AT THE SCHEDULED TIME</div>
-<div class="flow-stack">
-<div class="flow-row"><div class="flow-card blue"><strong>Scheduled task</strong><span>Exam Creation or Question Creation becomes due.</span></div><div class="flow-card teal"><strong>Apply assignment map</strong><span>Write the real coordinator IDs to Task / TaskSet / Section records.</span></div><div class="flow-card amber"><strong>Activate task</strong><span>Run the existing task activation/assignment workflow.</span></div></div>
-<div class="flow-down">↓</div>
-<div class="branch-grid">
-<div class="branch"><h3>Task Coordinator</h3><p>Notify the person responsible for the overall task.</p></div>
-<div class="branch"><h3>Set Coordinators</h3><p>Notify every coordinator assigned to a TaskSet.</p></div>
-<div class="branch"><h3>Section Coordinators</h3><p>For Exam Creation, notify every coordinator assigned to an exam section.</p></div>
-</div>
-<div class="flow-down">↓</div><div class="flow-caption"><strong>All applicable coordinator roles receive their notifications at execution time—not when the schedule is created.</strong></div>
-</div>
-</div>
-<p class="small">For Question Creation there may be no exam sections; notify only the coordinator roles that exist for that task type. Do not notify mentors early. Ordinary contributors should follow the existing CMS notification behaviour; this requirement specifically calls out Task, Set and Section Coordinators.</p>
-<h3>B. Question Review assignment</h3>
-<div class="mini-flow">
-<div class="step"><span class="step-num">1</span><b>Select review work</b><small>Choose the question(s), reviewer and review context using the normal CMS review action.</small></div><div class="step-arrow">→</div>
-<div class="step"><span class="step-num">2</span><b>Save schedule in IST</b><small>Store the intended review request and IST due time. Do not create the actual Review record or reviewer assignment yet.</small></div><div class="step-arrow">→</div>
-<div class="step"><span class="step-num">3</span><b>At due time</b><small>Invoke the existing question-review eligibility and assignment logic.</small></div><div class="step-arrow">→</div>
-<div class="step"><span class="step-num">4</span><b>Notify reviewer</b><small>Only after the eligible question enters review, send the existing reviewer notification.</small></div>
-</div>
-<div class="callout good"><strong>Version rule for Review:</strong> Do not add a Scheduler-specific version selector or a separate version-selection algorithm. At schedule creation, retain the selected question target and a lightweight snapshot/fingerprint of the version that is currently eligible for review. At execution, run the existing CMS review eligibility logic. If the selected question/version has changed since it was scheduled, remove/skip that question from this scheduled review and record the reason. Do not silently substitute a newer/different version.</div>
-<h3>C. Question Send for Publish</h3>
-<div class="mini-flow">
-<div class="step"><span class="step-num">1</span><b>Choose existing action</b><small>Use the same Send for Publish action that the CMS already exposes.</small></div><div class="step-arrow">→</div>
-<div class="step"><span class="step-num">2</span><b>Save schedule in IST</b><small>Store the IST due time and leave the Question's existing workflow state untouched until due time.</small></div><div class="step-arrow">→</div>
-<div class="step"><span class="step-num">3</span><b>At due time</b><small>Call the existing Send for Publish code and its existing eligibility/version-selection rules.</small></div><div class="step-arrow">→</div>
-<div class="step"><span class="step-num">4</span><b>Existing approval flow</b><small>Let the current workflow update status and send approval notifications.</small></div>
-</div>
-<div class="callout warn"><strong>Do not rebuild publishing eligibility.</strong> The existing CMS code already decides which question/version is sent for publish. The Scheduler should only delay that existing action. “Send for Publish” is not final publication; do not call the final publish operation automatically.</div>
-<h3>Future action types</h3>
-<p>Keep an action registry so more CMS operations can be added later. Every new action type must supply its own Scheduler permission mapping, existing workflow permission, target validation, execution handler and notification behaviour. The initial list can expand when QA confirms the next action types.</p>
-</section>
-<section class="section" id="storage">
-<div class="section-kicker">06 · Persistence and edit locking</div>
-<h2>What is stored, and how is a scheduled task locked?</h2>
-<p class="lead">Keep a CMS-owned <code>ScheduledAction</code> record for the business intent and let Agenda own its internal job record. For task assignments, a pending schedule must also lock the task from editing.</p>
-<div class="diagram"><div class="diagram-title">CONCEPTUAL DATA MODEL · BUSINESS RECORD, AGENDA JOB AND TASK LOCK</div>
-<div class="grid2">
-<div class="node db"><strong>ScheduledAction · CMS-owned</strong><span>_id · actionType · status · scheduledAtUtc · timeZone · createdBy · projectId · action permission key · target IDs · intended recipients · agendaJobId · result · history[]</span></div>
-<div class="node worker"><strong>Agenda job · Agenda-owned</strong><span>name: cms.execute-scheduled-action · data: scheduledActionId + scheduleRevision · nextRunAt · lockedAt · attempts / failure fields</span></div>
-<div class="node front"><strong>Task lock · CMS-owned</strong><span>Task.scheduleLock = { scheduledActionId, lockedBy, lockedAt }. Prevent edits to task, sets, sections and assignment configuration while active.</span></div>
-<div class="node target"><strong>Existing domain records</strong><span>Task / TaskSet / Section · Question / Review · Users / Project. Actual assignee/reviewer/approval state is written only when due.</span></div>
-</div>
-</div>
-<h3>Suggested ScheduledAction fields</h3>
-<div class="table-wrap"><table><thead><tr><th>Field group</th><th>Purpose</th><th>Notes</th></tr></thead><tbody>
-<tr><td><code>actionType</code></td><td>Which existing CMS operation to run.</td><td>Examples: TASK_ASSIGNMENT, QUESTION_REVIEW_ASSIGNMENT, QUESTION_SEND_FOR_PUBLISH.</td></tr>
-<tr><td><code>scheduledAtUtc</code> + <code>timeZone</code></td><td>Execution instant and fixed display timezone.</td><td>All user-entered times are IST. Convert to UTC for execution and store <code>timeZone: "Asia/Kolkata"</code> for consistent IST display.</td></tr>
-<tr><td><code>createdBy</code> + <code>projectId</code></td><td>Creator ownership and project scope.</td><td>Used to filter the creator's own scheduler rows and enforce owner/Admin controls.</td></tr>
-<tr><td><code>payload</code></td><td>Target IDs and intended action details.</td><td>For task actions, store the intended coordinator map without applying it. For Review, store the selected target and a lightweight fingerprint for change detection; existing CMS logic still decides eligibility.</td></tr>
-<tr><td><code>agendaJobId</code> + <code>scheduleRevision</code></td><td>Connect the CMS record to its Agenda job and reject stale jobs.</td><td>Agenda job data should carry the schedule ID and expected revision, not a copy of the whole task/question.</td></tr>
-<tr><td><code>status</code> + <code>executionResult</code></td><td>CMS-facing lifecycle and result.</td><td>SCHEDULING, SCHEDULED, PROCESSING, COMPLETED, PARTIAL, ACTION_REQUIRED, FAILED, CANCELLED.</td></tr>
-<tr><td><code>history[]</code> + <code>idempotencyKey</code></td><td>Audit actions and stop duplicate side effects.</td><td>Record who created/cancelled/sent-now, when execution started/finished and the result.</td></tr>
-</tbody></table></div>
-<h3>Task edit lock behaviour</h3>
-<div class="diagram"><div class="diagram-title">TASK EDIT LOCK · CANCEL FIRST, THEN EDIT</div>
-<div class="lock-flow">
-<div class="lock-box" style="background:#fffaf0;border-color:#f0d18a"><strong>Schedule saved</strong><span>Task.scheduleLock points to ScheduledAction.</span></div><div class="lock-arrow">→</div>
-<div class="lock-box" style="background:#fff4f2;border-color:#efb5ad"><strong>Task is locked</strong><span>UI disabled + backend rejects task/set/section edits.</span></div><div class="lock-arrow">→</div>
-<div class="lock-box" style="background:#f1fbf9;border-color:#96d5ca"><strong>Cancel schedule</strong><span>Agenda job cancelled; task lock cleared; normal edit permissions resume.</span></div>
-</div>
-<div class="callout danger"><strong>Important:</strong> showing a disabled Edit button is not sufficient. Every backend mutation endpoint that can change the scheduled task, its composition, sets, sections or coordinator mapping must reject the update while an active schedule lock exists. The user must cancel the schedule first; then edit and create a new schedule if required.</div>
-</div><p class="small"><strong>When does the lock clear?</strong> It clears when the creator/Admin cancels the pending schedule, or after the scheduled task assignment succeeds and the normal task activation commits. Once active, the task follows the CMS's normal post-activation edit rules. If execution ends in Action Required/Failed without activating the task, keep it locked until the schedule is cancelled so the task cannot be edited while a future action is still unresolved.</p>
-<h3>Consistency and indexing</h3>
-<ul>
-<li>Use indexes for Scheduler listing by <code>createdBy</code>, <code>status</code>, <code>scheduledAtUtc</code>, <code>projectId</code> and <code>actionType</code>, aligned to the actual query filters.</li>
-<li>Prevent multiple active schedules from locking the same task unless product rules explicitly allow them. Use an atomic task lock claim.</li>
-<li>Creating ScheduledAction, creating the Agenda job and locking the Task are multiple writes. Use a transaction where supported, or a recoverable SCHEDULING state and reconciliation path.</li>
-<li>Keep audit/history even after cancellation. Do not delete a scheduled record merely because the user cancelled it.</li>
-<li>No bulk-scheduling data model or batch scheduler API is required.</li>
-</ul>
-</section>
-<section class="section" id="worker">
-<div class="section-kicker">07 · Agenda execution engine</div>
-<h2>How Agenda knows the scheduled time has arrived</h2>
-<p>The browser is not involved after a schedule is saved. Agenda persists a one-time delayed job in MongoDB and processes it when due. Its handler reads the CMS ScheduledAction and executes the matching existing workflow.</p>
-<div class="diagram"><div class="diagram-title">AGENDA JOB LIFECYCLE · ONE SCHEDULED ACTION</div>
-<div class="mini-flow">
-<div class="step"><span class="step-num">1</span><b>Save ScheduledAction</b><small>Business status SCHEDULED, target payload and UTC due time.</small></div><div class="step-arrow">→</div>
-<div class="step"><span class="step-num">2</span><b>Agenda schedule()</b><small>Create one job with ScheduledAction ID and revision.</small></div><div class="step-arrow">→</div>
-<div class="step"><span class="step-num">3</span><b>Wait until due</b><small>Agenda's backend discovers job when it is due.</small></div><div class="step-arrow">→</div>
-<div class="step"><span class="step-num">4</span><b>Lock &amp; execute</b><small>Agenda lock + CMS atomic state claim + existing workflow.</small></div>
-</div>
-<div class="status-line"><span class="status-node pending">SCHEDULED</span><span class="status-arrow">→</span><span class="status-node processing">PROCESSING</span><span class="status-arrow">→</span><span class="status-node done">COMPLETED</span></div>
-</div>
-<h3>Runtime responsibilities</h3>
-<div class="feature-list">
-<div class="feature"><div class="icon">1</div><div><strong>Define one stable job handler</strong><p>For example <code>cms.execute-scheduled-action</code>. Its data contains only <code>scheduledActionId</code> and <code>scheduleRevision</code>; the handler loads the trusted payload from MongoDB.</p></div></div>
-<div class="feature"><div class="icon">2</div><div><strong>Configure due-job polling</strong><p>MongoBackend polls according to <code>processEvery</code>. Tune the interval against acceptable delay and MongoDB load. Agenda must never execute an action before its due instant.</p></div></div>
-<div class="feature"><div class="icon">3</div><div><strong>Use Agenda locking and concurrency</strong><p>Configure <code>maxConcurrency</code>, per-job concurrency, lock limit and lock lifetime. Also atomically claim ScheduledAction from SCHEDULED to PROCESSING so Cancel and Send Now cannot race with a running worker.</p></div></div>
-<div class="feature"><div class="icon">4</div><div><strong>Retry only transient failures</strong><p>Use bounded retry/backoff for temporary infrastructure failures. Invalid targets, changed review eligibility or permission conflicts should become an explicit skipped/action-required result, not retry forever.</p></div></div>
-<div class="feature"><div class="icon">5</div><div><strong>Keep CMS audit and Agenda state aligned</strong><p>Record execution started, completed, failure and retry information on ScheduledAction. Agenda owns its own lock and retry state; do not duplicate its lock mechanism in the CMS model.</p></div></div>
-<div class="feature"><div class="icon">6</div><div><strong>Run as a managed backend worker</strong><p>Start Agenda after MongoDB is ready and shut it down gracefully with the server. The browser never runs timers and the worker must recover jobs after restarts.</p></div></div>
-</div>
-<div class="card amber"><h3>Send Now and Cancel</h3><p><strong>Cancel:</strong> atomically mark the CMS record CANCELLED, cancel the pending Agenda job and clear any task lock. Reject if the action has already entered PROCESSING.<br/><strong>Send Now:</strong> only the creator or Admin may trigger it. Move the pending job to immediate execution (or safely replace its pending Agenda job with a new revision), then use the same processor and validation path. Never call the domain workflow directly from the API and never create a second execution.</p></div>
-<div class="callout warn"><strong>Timing contract:</strong> Agenda's MongoDB backend polls for due jobs. The configured <code>processEvery</code>, DB response and worker load affect how soon after the due time it starts. Define and monitor a practical delay SLA. Promise “not before scheduledAt”, not “exactly at the millisecond”.</div>
-</section>
-<section class="section" id="permission">
-<div class="section-kicker">08 · Authorization and visibility</div>
-<h2>Who can see, create and control schedules?</h2>
-<p class="lead">The Scheduler permission reveals the Scheduler tab, but it does not grant every CMS action. The user can schedule only action types for which they also hold the existing underlying permission.</p>
-<div class="diagram"><div class="diagram-title">SCHEDULER TAB VISIBILITY AND LIST FILTERING</div>
-<div class="flow-stack">
-<div class="flow-row"><div class="flow-card blue"><strong>User opens CMS</strong><span>Backend session is authenticated.</span></div><div class="flow-card teal"><strong>Check Scheduler permission</strong><span>Does the user have the new platform-level scheduler permission?</span></div><div class="flow-card violet"><strong>Show Scheduler tab</strong><span>Show navigation item only when permitted (Admin follows the CMS Admin bypass).</span></div></div>
-<div class="flow-down">↓</div>
-<div class="branch-grid">
-<div class="branch"><h3>Non-Admin Scheduler user</h3><p>List only schedules created by this user, and only action categories they currently have underlying permission to perform/manage.</p></div>
-<div class="branch"><h3>Admin</h3><p>Can see all scheduled actions and all their details across the platform, subject to normal platform data safeguards.</p></div>
-<div class="branch"><h3>No Scheduler permission</h3><p>No Scheduler tab and no Scheduler API access. Direct API calls must return forbidden.</p></div>
-</div>
-</div>
-</div>
-<h3>Action permission filtering for a non-Admin</h3>
-<div class="table-wrap"><table><thead><tr><th>User has Scheduler permission</th><th>Also has underlying permission</th><th>Can see / create that schedule type?</th></tr></thead><tbody>
-<tr><td>Yes</td><td>Task Management</td><td><span class="badge b-green">Yes</span> Exam Creation and Question Creation scheduled task actions.</td></tr>
-<tr><td>Yes</td><td>Question Review / relevant question permission</td><td><span class="badge b-green">Yes</span> Question Review schedules.</td></tr>
-<tr><td>Yes</td><td>Send-for-Publish / publish permission</td><td><span class="badge b-green">Yes</span> Send for Publish schedules.</td></tr>
-<tr><td>Yes</td><td>No Task Management permission</td><td><span class="badge b-red">No</span> No task-related schedule rows or create controls.</td></tr>
-<tr><td>No</td><td>Any underlying permission only</td><td><span class="badge b-red">No</span> Scheduler tab and Scheduler APIs remain unavailable.</td></tr>
-<tr><td>Admin</td><td>Admin role</td><td><span class="badge b-green">All</span> Admin can see all scheduled action types and all schedule details.</td></tr>
-</tbody></table></div>
-<h3>Who can cancel or Send Now?</h3>
-<div class="rule-grid">
-<div class="rule"><strong><span class="rule-icon">C</span> Schedule creator</strong><p>Can cancel or Send Now only the schedules that this user personally created, while the schedule is still pending.</p></div>
-<div class="rule"><strong><span class="rule-icon">A</span> Admin</strong><p>Can cancel or Send Now any pending schedule, regardless of who created it.</p></div>
-<div class="rule"><strong><span class="rule-icon">S</span> Other Scheduler users</strong><p>Cannot cancel or Send Now another user's schedule merely because they have Scheduler permission.</p></div>
-<div class="rule"><strong><span class="rule-icon">M</span> Mentors / recipients</strong><p>Do not receive access to a pending schedule and do not manage it from the Scheduler page.</p></div>
-</div>
-<div class="callout good"><strong>Backend enforcement:</strong> on every list/detail/action API, derive identity and role from the authenticated server session. A non-Admin may operate only when <code>createdBy === session.userId</code>; an Admin may operate across creators. Never trust a frontend-provided creator ID.</div>
-<h3>Permission integration</h3>
-<ul>
-<li>Add a dedicated platform-level permission, suggested key <code>scheduler</code>, to the backend permission constants and frontend permission options / Users &amp; Permissions UI.</li>
-<li>Use the platform permission guard to show the tab, but also enforce login + Scheduler permission on every backend Scheduler endpoint.</li>
-<li>At schedule creation, check the existing permission for the specific action type. Scheduler permission cannot grant Task Management, Review or Publish permissions.</li>
-<li>Use creator ownership and Admin role for Cancel / Send Now. Do not allow another Scheduler-permission holder to manage a colleague's schedule.</li>
-</ul>
-</section>
-<section class="section" id="page">
-<div class="section-kicker">09 · Frontend experience</div>
-<h2>Dedicated Scheduler tab and listing</h2>
-<p>The Scheduler tab appears for users who have Scheduler permission. Non-Admin users see only the schedules they created, filtered to action types they are currently allowed to perform. Admin sees all scheduled records and their full details.</p>
-<div class="diagram"><div class="diagram-title">SCHEDULER PAGE · NON-ADMIN VIEW MOCKUP</div>
-<div class="card" style="padding:18px;background:#fbfcff">
-<div style="display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap"><div><strong style="font-size:18px;color:#1b2940">Scheduler</strong><div class="small">Your scheduled CMS actions</div></div><span class="badge b-blue">Scheduler permission</span></div>
-<div style="display:flex;gap:8px;flex-wrap:wrap;margin:14px 0"><span class="badge b-grey">Allowed action types ▾</span><span class="badge b-grey">Status ▾</span><span class="badge b-grey">Project ▾</span><span class="badge b-grey">Date range ▾</span><span class="badge b-grey">Search target / mentor</span></div>
-<div class="table-wrap" style="margin:0"><table style="min-width:620px"><thead><tr><th>Scheduled action</th><th>Assigned to</th><th>Scheduled for (IST)</th><th>Status</th><th>Actions</th></tr></thead><tbody>
-<tr><td><strong>Exam Creation · Midterm</strong><br/><span class="small">Task #T-104 · Project Alpha</span></td><td>Task / Set / Section Coordinators</td><td>30 Nov · 10:00 AM IST</td><td><span class="badge b-blue">Scheduled</span></td><td>View · Send Now · Cancel</td></tr>
-<tr><td><strong>Question Review · Q-812</strong><br/><span class="small">Project Beta</span></td><td>Mentor B</td><td>01 Dec · 09:30 AM IST</td><td><span class="badge b-blue">Scheduled</span></td><td>View · Send Now · Cancel</td></tr>
-<tr><td><strong>Send for Publish · Q-882</strong><br/><span class="small">Existing publish workflow</span></td><td>Approval workflow</td><td>28 Nov · 04:00 PM IST</td><td><span class="badge b-green">Completed</span></td><td>View Result</td></tr>
-</tbody></table></div>
-<div class="small" style="margin-top:8px">Illustrative data only. Rows are limited to schedules created by the signed-in user and their permitted action categories.</div>
-</div>
-</div>
-<div class="diagram"><div class="diagram-title">ADMIN VIEW MOCKUP · PLATFORM-WIDE SCHEDULE VISIBILITY</div>
-<div class="card" style="padding:18px;background:#fbfcff"><div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><strong style="font-size:18px;color:#1b2940">Scheduler · Admin</strong><span class="badge b-violet">All creators / all action types</span></div><div class="table-wrap" style="margin-top:14px"><table style="min-width:620px"><thead><tr><th>Action</th><th>Created by</th><th>Recipient</th><th>Due (IST)</th><th>Status</th><th>Actions</th></tr></thead><tbody><tr><td>Question Creation Task</td><td>Manager A</td><td>Task Coordinators</td><td>30 Nov · 10 AM IST</td><td><span class="badge b-blue">Scheduled</span></td><td>View · Send Now · Cancel</td></tr><tr><td>Question Review</td><td>Manager B</td><td>Mentor C</td><td>01 Dec · 9:30 AM IST</td><td><span class="badge b-blue">Scheduled</span></td><td>View · Send Now · Cancel</td></tr></tbody></table></div><div class="small">Admin can inspect every schedule, including creator, target, project, recipients, audit trail and execution result.</div></div>
-</div>
-<h3>Only these Scheduler actions are in the confirmed scope</h3>
-<div class="grid2">
-<div class="card"><h3>View details</h3><p>Show action type, target task/question, project, intended coordinators/reviewers, scheduled date/time, creator, status, audit and execution result.</p></div>
-<div class="card"><h3>Cancel</h3><p>Creator or Admin only. Allowed while pending. Cancels the Agenda job, marks the business record CANCELLED and releases the task edit lock if present.</p></div>
-<div class="card"><h3>Send Now</h3><p>Creator or Admin only. Runs through the same Agenda processor and existing CMS validation immediately; no second execution or bypass.</p></div>
-<div class="card"><h3>Filters and history</h3><p>Filter by action type the user may access, status, project and date. Completed/cancelled rows remain for audit and history.</p></div>
-</div>
-<h3>Where the Schedule option appears</h3>
-<ul><li>Task Assignment / coordinator selection for Exam Creation and Question Creation.</li><li>Question Review / assign reviewer action.</li><li>Question Send for Publish action.</li></ul>
-<p class="small">Use existing React + TypeScript + Ant Design, Axios and TanStack Query patterns. Each scheduling request represents one normal CMS operation; no separate bulk-scheduling wizard is required. Scheduler tab visibility is permission based; non-Admin rows are limited to the creator and the action types they are permitted to perform.</p>
-</section>
-<section class="section" id="time">
-<div class="section-kicker">10 · Time handling</div>
-<h2>All Scheduler dates and times use IST</h2>
-<div class="grid2">
-<div class="card blue"><h3>What the user selects</h3><p>A date/time picker that always uses <strong>Indian Standard Time (IST)</strong>, for example <strong>30 November 2026 · 10:00 AM IST</strong>. Do not use the browser or device timezone.</p></div>
-<div class="card teal"><h3>What the backend stores</h3><p>An absolute UTC timestamp plus the fixed IANA timezone <strong>Asia/Kolkata</strong>. This is an implementation representation of IST, not a user-selectable timezone.</p></div>
-</div>
-<ul>
-<li>Reject dates in the past, including a time earlier than the current time on the selected day.</li>
-<li>Send an unambiguous ISO 8601 instant derived from IST. Never send a timezone-free date string or interpret a browser-local timestamp as IST.</li>
-<li>Store <code>scheduledAtUtc</code> and the fixed <code>timeZone: "Asia/Kolkata"</code>. Agenda compares UTC instants only; the UI displays every schedule in IST regardless of the user's device timezone or the server's local timezone.</li>
-<li>Once saved, the schedule time is not edited in-place in the Scheduler page. To change it, the creator or Admin cancels the current schedule and creates a new one from the source CMS workflow.</li>
-<li>Agenda's polling interval determines how soon after the due instant the job starts. The system must never intentionally execute early; exact millisecond execution is not promised.</li>
-</ul>
-<div class="callout good"><strong>Example:</strong> the manager chooses <strong>30 November 2026, 10:00 AM IST</strong>. The frontend interprets it in <code>Asia/Kolkata</code> (UTC+05:30) and converts it to <strong>04:30 AM UTC</strong>. MongoDB stores the UTC instant with the fixed timezone metadata. Agenda executes at or shortly after that instant; every Scheduler screen displays <strong>10:00 AM IST</strong>.</div>
-</section>
-<section class="section" id="reliability">
-<div class="section-kicker">11 · Safety and edge cases</div>
-<h2>What if something changes before or during execution?</h2>
-<p>Agenda guarantees durable job processing, but the CMS must re-check its own business rules at execution time. The scheduled intent may become invalid while it is waiting.</p>
-<div class="table-wrap"><table><thead><tr><th>Scenario</th><th>Required behaviour</th><th>Result</th></tr></thead><tbody>
-<tr><td>Task has an active scheduled assignment</td><td>Block edits to task, sets, sections and coordinator mapping in both UI and backend. User must Cancel first to unlock.</td><td><span class="badge b-amber">Locked</span></td></tr>
-<tr><td>Creator cancels before due</td><td>Atomically mark CANCELLED, cancel pending Agenda job and release Task.scheduleLock.</td><td><span class="badge b-grey">Cancelled</span></td></tr>
-<tr><td>Someone attempts to edit a locked task by API</td><td>Reject in backend even if the frontend edit control was bypassed.</td><td><span class="badge b-red">Forbidden / Conflict</span></td></tr>
-<tr><td>Mentor is inactive or no longer eligible</td><td>Do not assign to that mentor. Record the affected recipient and tell the schedule creator/Admin.</td><td><span class="badge b-amber">Action Required</span></td></tr>
-<tr><td>Question/version changed before scheduled Review</td><td>Remove/skip that question from this scheduled review if its scheduled target/fingerprint no longer matches. Do not switch to another version; record the skip reason.</td><td><span class="badge b-amber">Skipped</span></td></tr>
-<tr><td>Question review already exists</td><td>Use existing conflict checks; do not create a second review. Record the reason.</td><td><span class="badge b-amber">Action Required</span></td></tr>
-<tr><td>Send-for-publish question eligibility changed</td><td>Let the existing Send for Publish workflow decide whether it can proceed; do not add separate selection/version logic.</td><td><span class="badge b-amber">Existing workflow result</span></td></tr>
-<tr><td>Backend restarts before due time</td><td>Agenda reloads the persisted job from MongoDB after startup; the CMS ScheduledAction remains the business record.</td><td><span class="badge b-blue">Still Scheduled</span></td></tr>
-<tr><td>Worker crashes after a side effect</td><td>Agenda lock/retry handles job recovery; CMS idempotency key prevents duplicate assignments, reviews or notifications.</td><td><span class="badge b-amber">Retry / Attention</span></td></tr>
-</tbody></table></div>
-<h3>State lifecycle</h3>
-<div class="diagram"><div class="diagram-title">SCHEDULED ACTION STATUS LIFECYCLE</div>
-<div class="status-line"><span class="status-node pending">SCHEDULED</span><span class="status-arrow">→</span><span class="status-node processing">PROCESSING</span><span class="status-arrow">→</span><span class="status-node done">COMPLETED</span></div>
-<div class="status-line"><span class="status-node processing">PROCESSING</span><span class="status-arrow">→</span><span class="status-node error">PARTIAL / ACTION_REQUIRED / FAILED</span></div>
-<div class="status-line"><span class="status-node pending">SCHEDULED</span><span class="status-arrow">→</span><span class="status-node cancel">CANCELLED</span><span class="small">Creator or Admin, before processing starts</span></div>
-</div>
-<div class="callout danger"><strong>Idempotency is mandatory:</strong> Agenda locks prevent two processors from normally claiming the same job, but a processor can complete a CMS side effect and crash before reporting success. The CMS must use a stable execution key (for example ScheduledAction ID + action target ID) before creating a Review, writing coordinator assignments or sending notifications again.</div>
-<h3>Expected behaviour for notification timing</h3>
-<div class="rule-grid">
-<div class="rule"><strong><span class="rule-icon">0</span>At schedule creation</strong><p>No assignment notification goes to the mentor/coordinator/reviewer. Only save the pending schedule and audit it.</p></div>
-<div class="rule"><strong><span class="rule-icon">1</span>At scheduled execution</strong><p>Existing task/review/send-for-publish code sends its notifications after the corresponding CMS action succeeds.</p></div>
-</div>
-</section>
-</main>
-</div>
-<footer class="footer">Question Service · CMS Scheduler and Agenda.js design · All scheduler dates and times use IST (Asia/Kolkata). Repository baseline dev-testing @ 9e21a132 (27 Nov 2026). Covers Scheduler permission and ownership, action-specific access, task edit locks, review eligibility, existing publishing rules, no-bulk-scheduling scope, due-time notifications and Agenda execution. This is an implementation design, not application code.</footer>
-</body>
+      .scope-pill {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 999px;
+        padding: 4px 8px;
+        font-weight: 800;
+        font-size: 10px;
+        background: #eef2f8;
+        color: #40516b;
+        margin: 2px 3px 2px 0;
+      }
+      .lock-flow {
+        display: grid;
+        grid-template-columns: 1fr 34px 1fr 34px 1fr;
+        gap: 8px;
+        align-items: center;
+        margin: 16px 0;
+      }
+      .lock-box {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 13px;
+        background: #fff;
+        text-align: center;
+        min-width: 0;
+      }
+      .lock-box strong {
+        display: block;
+        font-size: 12px;
+        color: #24344e;
+      }
+      .lock-box span {
+        display: block;
+        font-size: 11px;
+        color: var(--muted);
+        margin-top: 4px;
+      }
+      .lock-arrow {
+        text-align: center;
+        font-size: 21px;
+        color: #94a3b8;
+      }
+      @media (max-width: 900px) {
+        .flow-row,
+        .branch-grid,
+        .branch-grid.action-branches {
+          grid-template-columns: 1fr;
+        }
+        .agenda-architecture {
+          grid-template-columns: 1fr 1fr;
+        }
+        .agenda-box:after {
+          display: none;
+        }
+        .lock-flow {
+          grid-template-columns: 1fr;
+        }
+        .lock-arrow {
+          transform: rotate(90deg);
+        }
+      }
+      @media (max-width: 650px) {
+        .rule-grid {
+          grid-template-columns: 1fr;
+        }
+        .flow-card {
+          padding: 12px;
+        }
+        .section {
+          padding: 20px;
+        }
+        .layout {
+          display: block;
+        }
+        .toc {
+          position: static;
+          margin-bottom: 18px;
+        }
+      }
+      .b-violet {
+        background: var(--violet-soft);
+        color: #5734a5;
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark">S</div>
+        <div>
+          QUESTION SERVICE
+          <span style="color: #91a8c8; font-weight: 500"
+            >/ Architecture Proposal</span
+          >
+        </div>
+      </div>
+      <div class="topmeta">
+        Confirmed requirement review · 27 Nov 2026<br />Repository baseline:
+        dev-testing · 9e21a132<br />Scheduler engine: Agenda.js + MongoDB
+      </div>
+    </header>
+    <section class="hero">
+      <div class="hero-inner">
+        <div class="eyebrow">
+          Scheduler workflow · Agenda-powered scheduling · IST
+        </div>
+        <h1>CMS Scheduler</h1>
+        <p>
+          A permission-controlled way to prepare a task or question workflow
+          action now and execute it at a chosen future date and time. Until that
+          time, the mentor receives no assignment access and no assignment
+          notification.
+        </p>
+        <div class="pills">
+          <span class="pill">Task Assignment</span
+          ><span class="pill">Question Review</span
+          ><span class="pill">Scheduler Permission</span
+          ><span class="pill">Creator / Admin Controls</span
+          ><span class="pill">Task Edit Lock</span
+          ><span class="pill">Agenda.js + MongoDB</span>
+        </div>
+      </div>
+    </section>
+    <div class="layout">
+      <nav aria-label="Contents" class="toc">
+        <h2>On this page</h2>
+        <a href="#overview">01 · Requirement at a glance</a
+        ><a href="#current">02 · Existing CMS workflows</a
+        ><a href="#architecture">03 · Agenda architecture</a
+        ><a href="#lifecycle">04 · Complete execution flow</a
+        ><a href="#actions">05 · Action-specific behaviour</a
+        ><a href="#storage">06 · Data and task lock</a
+        ><a href="#worker">07 · Agenda job execution</a
+        ><a href="#permission">08 · Permission and visibility</a
+        ><a href="#page">09 · Scheduler page</a
+        ><a href="#time">10 · Date and timezone</a
+        ><a href="#reliability">11 · Safety and edge cases</a>
+      </nav>
+      <main>
+        <section class="section" id="overview">
+          <div class="section-kicker">01 · Confirmed requirement</div>
+          <h2>What the CMS Scheduler must do</h2>
+          <p class="lead">
+            A person with the new <strong>Scheduler permission</strong> can
+            schedule an allowed CMS action for a future date and time. The
+            action must not become a real mentor assignment before that time.
+            Agenda.js executes it when it becomes due, and the existing CMS
+            workflow performs the actual task activation/assignment or question
+            review operation.
+          </p>
+          <div class="grid3">
+            <div class="card blue">
+              <div class="kpi">Create</div>
+              <div class="kpi-label">Schedule the action now</div>
+              <p>
+                Choose one existing operation, its target/mentor details and the
+                future date/time.
+              </p>
+            </div>
+            <div class="card amber">
+              <div class="kpi">Wait</div>
+              <div class="kpi-label">No early side effects</div>
+              <p>
+                No real assignment, mentor access or workflow notification is
+                created before the due time.
+              </p>
+            </div>
+            <div class="card teal">
+              <div class="kpi">Execute</div>
+              <div class="kpi-label">Run the existing CMS flow</div>
+              <p>
+                At or after the due time, validate and perform the normal CMS
+                action, then notify its intended recipients.
+              </p>
+            </div>
+          </div>
+          <div class="callout good">
+            <strong>Core design rule:</strong> the Scheduler stores an
+            instruction for a future action. It does not create a second task or
+            review workflow. At the scheduled time, it calls the existing
+            workflow that already knows how to decide eligibility and update CMS
+            records.
+          </div>
+          <h3>Three scheduled actions in two categories</h3>
+          <p>
+            The current scope covers only Exam Creation tasks, Question Creation
+            tasks and Question Review. Tasks and Question Review are the two
+            Scheduler categories. Other action types are future scope. The
+            existing CMS publishing workflow remains separate from the
+            Scheduler.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Scheduled action</th>
+                  <th>What happens at the scheduled time</th>
+                  <th>Notification timing</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><strong>Exam Creation task</strong></td>
+                  <td>
+                    Apply the task, set and section coordinator assignment plan,
+                    then activate the task using the existing task workflow.
+                  </td>
+                  <td>
+                    Only at execution: task coordinator, all applicable set
+                    coordinators and section coordinators.
+                  </td>
+                </tr>
+                <tr>
+                  <td><strong>Question Creation task</strong></td>
+                  <td>
+                    Apply the task and set coordinator assignments, then
+                    activate the task using the existing task workflow.
+                  </td>
+                  <td>
+                    Only at execution: task coordinator and all applicable set
+                    coordinators.
+                  </td>
+                </tr>
+                <tr>
+                  <td><strong>Question Review</strong></td>
+                  <td>
+                    Run the existing review eligibility and assignment flow.
+                    Only the version that is eligible under the current review
+                    rules should enter review.
+                  </td>
+                  <td>Only when the actual review assignment is created.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout warn">
+            <strong>No new bulk-scheduling feature:</strong> the Scheduler
+            creates one scheduled action for one normal CMS assignment/workflow
+            operation at a time. It will not introduce a separate bulk-schedule
+            builder, multi-schedule wizard or CSV scheduling flow. If an
+            existing CMS action already supports selecting several questions as
+            one review operation, the Scheduler can wrap that existing operation
+            without adding a new bulk feature.
+          </div>
+        </section>
+        <section class="section" id="current">
+          <div class="section-kicker">02 · Existing CMS foundation</div>
+          <h2>Reuse the workflows already in Question Service</h2>
+          <p>
+            The Scheduler should sit in front of the current workflows. The
+            scheduled record holds the future intent; the current
+            controllers/services remain responsible for the actual domain
+            changes.
+          </p>
+          <div class="grid3">
+            <div class="card">
+              <h3>Task creation and activation</h3>
+              <p>
+                Exam Creation and Question Creation tasks already have task, set
+                and coordinator concepts. The Scheduler must hold the intended
+                coordinator map separately and only write real assignments when
+                the Agenda job executes.
+              </p>
+            </div>
+            <div class="card">
+              <h3>Coordinator notifications</h3>
+              <p>
+                At due time, the existing task activation/assignment flow should
+                notify the Task Coordinator, all assigned Set Coordinators and
+                all assigned Section Coordinators. No task-assignment
+                notification goes out when the schedule is first saved.
+              </p>
+            </div>
+            <div class="card">
+              <h3>Question Review</h3>
+              <p>
+                Review already has eligibility and assignment logic. Do not
+                create a parallel version picker in the Scheduler. At execution,
+                call the existing review path; if a selected question is no
+                longer eligible, skip/remove that question from this scheduled
+                review and record why.
+              </p>
+            </div>
+          </div>
+          <h3>Existing integration points to preserve</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Workflow</th>
+                  <th>Known current integration point</th>
+                  <th>Scheduler responsibility</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Task creation</td>
+                  <td>
+                    <code>controllers/task/task.controller.js</code> →
+                    <code>createTask</code>
+                  </td>
+                  <td>
+                    Create and configure the task as a draft before scheduling;
+                    then create the schedule record. Do not make mentor
+                    assignments live.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Coordinator assignment</td>
+                  <td>
+                    Task controller coordinator assignment logic;
+                    <code>Task.taskCoordinatorId</code>,
+                    <code>TaskSet.coordinatorIds</code>, section coordinator
+                    data
+                  </td>
+                  <td>
+                    Persist intended coordinator IDs only in the schedule
+                    payload; apply them to the real Task/TaskSet/section records
+                    at due time.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Task activation</td>
+                  <td>
+                    Task controller <code>activateTask</code> and
+                    <code>task.services.js</code>
+                  </td>
+                  <td>
+                    Invoke existing activation after assignments are applied;
+                    rely on the normal task visibility/notification workflow.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Question review</td>
+                  <td>
+                    Direct question request-review and task-set reviewer
+                    assignment routes
+                  </td>
+                  <td>
+                    Call the existing review-eligibility/assignment path at due
+                    time. Retain the selected eligible version identity; skip
+                    changed question/version targets and never substitute
+                    another version.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout good">
+            <strong>Compatibility principle:</strong> “Schedule” should behave
+            like “do the normal action later”. It should not fork or duplicate
+            task activation, question review eligibility, access checks or
+            notification templates.
+          </div>
+        </section>
+        <section class="section" id="architecture">
+          <div class="section-kicker">03 · Solution design</div>
+          <h2>Recommended architecture with Agenda.js</h2>
+          <p class="lead">
+            Use <strong>Agenda.js with its MongoDB backend</strong> as the
+            durable delayed-job engine. Question Service still owns the
+            Scheduler permission, the business record, the task edit lock,
+            visibility rules and the action-specific execution logic.
+          </p>
+          <div class="diagram">
+            <div class="diagram-title">
+              END-TO-END ARCHITECTURE · FROM CMS ACTION TO MENTOR NOTIFICATION
+            </div>
+            <div class="flow-stack">
+              <div class="flow-row">
+                <div class="flow-card blue">
+                  <strong>1 · Existing CMS screen</strong
+                  ><span
+                    >Create/configure an Exam Creation or Question Creation
+                    task, or select eligible Question Review work. Choose
+                    Schedule and a date/time in IST (Asia/Kolkata).</span
+                  >
+                </div>
+                <div class="flow-card teal">
+                  <strong>2 · Scheduler API</strong
+                  ><span
+                    >Checks Scheduler permission, action-specific permission,
+                    ownership, target and scheduled time.</span
+                  >
+                </div>
+                <div class="flow-card violet">
+                  <strong>3 · CMS business record</strong
+                  ><span
+                    >Creates ScheduledAction. For a task, sets a schedule lock
+                    so task configuration cannot be edited.</span
+                  >
+                </div>
+              </div>
+              <div class="flow-down">↓</div>
+              <div class="flow-caption">
+                The Scheduler API then persists a matching delayed Agenda job.
+              </div>
+              <div class="flow-row">
+                <div class="flow-card amber">
+                  <strong>4 · Agenda + MongoDB</strong
+                  ><span
+                    >Stores a one-time job in <code>agendaJobs</code> with the
+                    ScheduledAction ID and revision.</span
+                  >
+                </div>
+                <div class="flow-card amber">
+                  <strong>5 · Waiting period</strong
+                  ><span
+                    >Agenda waits for the due time. No mentor assignment, no
+                    mentor access and no action notification.</span
+                  >
+                </div>
+                <div class="flow-card blue">
+                  <strong>6 · Agenda processor</strong
+                  ><span
+                    >Locks the due job, loads the ScheduledAction and atomically
+                    claims it for execution.</span
+                  >
+                </div>
+              </div>
+              <div class="flow-down">↓</div>
+              <div class="flow-caption">
+                The processor dispatches to the existing domain workflow—not a
+                new copy of it.
+              </div>
+              <div class="branch-grid action-branches">
+                <div class="branch">
+                  <h3>Tasks · Exam / Question Creation</h3>
+                  <p>
+                    Apply Task Coordinator + Set Coordinators + Section
+                    Coordinators, activate task, then issue coordinator
+                    notifications.
+                  </p>
+                </div>
+                <div class="branch">
+                  <h3>Question Review</h3>
+                  <p>
+                    Revalidate the selected eligible version identity. Skip and
+                    report any changed question/version; never substitute a
+                    different version. Use the existing review assignment flow.
+                  </p>
+                </div>
+              </div>
+              <div class="flow-down">↓</div>
+              <div class="flow-row">
+                <div class="flow-card green">
+                  <strong>7 · Real CMS action</strong
+                  ><span
+                    >Persist normal task assignment/activation or review state.
+                    Mentor access starts only now.</span
+                  >
+                </div>
+                <div class="flow-card green">
+                  <strong>8 · Notifications</strong
+                  ><span
+                    >Send the existing workflow notifications at execution time
+                    to the relevant coordinator/reviewer recipients.</span
+                  >
+                </div>
+                <div class="flow-card teal">
+                  <strong>9 · Scheduler result</strong
+                  ><span
+                    >Record Completed / Partial / Action Required / Failed and
+                    show the outcome in the Scheduler page.</span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="agenda-note">
+            <strong>Two MongoDB collections, two responsibilities:</strong>
+            <code>scheduledActions</code> is the CMS business record used for
+            ownership, permissions, display, task locking and audit. Agenda's
+            <code>agendaJobs</code> collection is the internal execution queue.
+            The CMS UI must read <code>scheduledActions</code>, not expose raw
+            Agenda job documents.
+          </div>
+          <div class="agenda-split">
+            <div class="card violet">
+              <h3>Agenda's responsibility</h3>
+              <p>
+                Persist the delayed job, discover it when due, lock it for
+                processing, coordinate concurrency and apply configured
+                retry/backoff.
+              </p>
+            </div>
+            <div class="card teal">
+              <h3>Question Service's responsibility</h3>
+              <p>
+                Check who may schedule/view/manage, lock the task, decide which
+                existing business workflow to invoke, enforce idempotency and
+                deliver normal CMS notifications.
+              </p>
+            </div>
+          </div>
+          <h3>Packages and fit with the current backend</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Component</th>
+                  <th>Responsibility</th>
+                  <th>Why it fits</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>agenda</code></td>
+                  <td>
+                    Job definitions, delayed scheduling, processing lifecycle,
+                    locking and concurrency.
+                  </td>
+                  <td>
+                    Current backend uses ES modules and Node 22; Agenda 6 is ESM
+                    and requires Node 18+.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>@agendajs/mongo-backend</code></td>
+                  <td>Persists Agenda jobs in MongoDB.</td>
+                  <td>
+                    Uses MongoDB for durable job state; confirm compatibility
+                    with the current application's MongoDB driver and shared Db
+                    connection during implementation.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>ScheduledAction</code> (new CMS model)</td>
+                  <td>
+                    Business record, createdBy ownership, action type, schedule
+                    time, status, target payload, task lock reference and audit.
+                  </td>
+                  <td>
+                    Agenda jobs are engine records and are not a substitute for
+                    a CMS-owned scheduler listing.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Agenda processor</td>
+                  <td>
+                    Loads a ScheduledAction and delegates to the existing task
+                    or review workflow.
+                  </td>
+                  <td>
+                    One dispatcher can support current action types and future
+                    ones without copying domain logic.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout good">
+            <strong>Agenda 6 design note:</strong> v6 uses the separate
+            <code>agenda</code> and
+            <code>@agendajs/mongo-backend</code> packages. Its MongoDB backend
+            polls for due jobs; optional notification channels are a separate
+            feature. Start with the MongoDB backend and choose
+            <code>processEvery</code> according to the acceptable dispatch
+            delay. The requirement is “never before the scheduled time”; exact
+            millisecond execution is not a realistic guarantee.
+          </div>
+          <h3>Official Agenda references</h3>
+          <ul>
+            <li>
+              <a
+                href="https://agenda.github.io/agenda/"
+                rel="noopener"
+                target="_blank"
+                >Agenda 6.2.8 documentation</a
+              >
+              — setup, schedule(), now(), processEvery, concurrency and
+              backends.
+            </li>
+            <li>
+              <a
+                href="https://github.com/agenda/agenda/blob/main/docs/migration-guide-v6.md"
+                rel="noopener"
+                target="_blank"
+                >Agenda v6 migration guide</a
+              >
+              — ESM-only package and separate backend package design.
+            </li>
+            <li>
+              <a
+                href="https://github.com/agenda/agenda/blob/main/packages/mongo-backend/README.md"
+                rel="noopener"
+                target="_blank"
+                >Agenda MongoDB backend README</a
+              >
+              — MongoDB connection and job collection configuration.
+            </li>
+          </ul>
+        </section>
+        <section class="section" id="lifecycle">
+          <div class="section-kicker">04 · Complete flow</div>
+          <h2>What happens before, at and after the scheduled time?</h2>
+          <p class="lead">
+            The browser only creates and manages the schedule. The backend
+            worker executes it. The mentor is not assigned and notified until
+            the Agenda job becomes due and the existing CMS workflow succeeds.
+          </p>
+          <div class="diagram">
+            <div class="diagram-title">
+              SCHEDULER LIFECYCLE · MANAGER, CMS, AGENDA AND MENTOR
+            </div>
+            <div class="flow-stack">
+              <div class="flow-row">
+                <div class="flow-card blue">
+                  <strong>Manager · choose action</strong
+                  ><span
+                    >Create/configure an Exam Creation or Question Creation
+                    task, or select eligible Question Review work; choose the
+                    schedule date/time in IST.</span
+                  >
+                </div>
+                <div class="flow-card teal">
+                  <strong>CMS · authorize</strong
+                  ><span
+                    >Require Scheduler permission plus the matching
+                    task/question permission. Only the creator or Admin can
+                    later Cancel or Send Now.</span
+                  >
+                </div>
+                <div class="flow-card violet">
+                  <strong>CMS · save intent</strong
+                  ><span
+                    >Writes a ScheduledAction with creator, target, recipients
+                    and the selected IST date/time.</span
+                  >
+                </div>
+              </div>
+              <div class="flow-down">↓</div>
+              <div class="flow-row">
+                <div class="flow-card amber">
+                  <strong>Task lock (task actions)</strong
+                  ><span
+                    >Task, sets, sections and coordinator configuration become
+                    read-only. The creator or Admin must Cancel before
+                    editing.</span
+                  >
+                </div>
+                <div class="flow-card amber">
+                  <strong>Agenda schedule()</strong
+                  ><span
+                    >Persists one delayed job for the IST-selected instant,
+                    normalized to UTC and linked to the ScheduledAction.</span
+                  >
+                </div>
+                <div class="flow-card red">
+                  <strong>Mentor · nothing yet</strong
+                  ><span
+                    >No assignment, no visible task/review and no assignment
+                    notification before due time.</span
+                  >
+                </div>
+              </div>
+              <div class="flow-down">↓</div>
+              <div class="flow-row">
+                <div class="flow-card amber">
+                  <strong>Due time reached</strong
+                  ><span
+                    >Agenda finds and locks the job. A small processing delay is
+                    possible; an early run is not allowed.</span
+                  >
+                </div>
+                <div class="flow-card teal">
+                  <strong>Revalidate &amp; claim</strong
+                  ><span
+                    >Check schedule still SCHEDULED, action remains valid and
+                    execution has not already happened.</span
+                  >
+                </div>
+                <div class="flow-card blue">
+                  <strong>Call existing workflow</strong
+                  ><span
+                    >Apply task assignments and activate the task, or revalidate
+                    the saved eligible review version and assign it through the
+                    existing review flow. Skip any changed
+                    question/version.</span
+                  >
+                </div>
+              </div>
+              <div class="flow-down">↓</div>
+              <div class="flow-row">
+                <div class="flow-card green">
+                  <strong>Persist actual state</strong
+                  ><span
+                    >Task becomes active or the selected eligible question
+                    version enters review.</span
+                  >
+                </div>
+                <div class="flow-card green">
+                  <strong>Send notifications</strong
+                  ><span
+                    >Only after the existing CMS action succeeds: notify Task,
+                    Set and Section Coordinators as applicable, or the review
+                    recipients.</span
+                  >
+                </div>
+                <div class="flow-card green">
+                  <strong>Finish &amp; audit</strong
+                  ><span
+                    >ScheduledAction records result, timestamps, attempts and
+                    any skipped/failed reason.</span
+                  >
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="callout good">
+            <strong>Time convention:</strong> the date and time chosen in the
+            CMS are always interpreted and displayed in
+            <strong>IST (Asia/Kolkata)</strong>. The backend converts that IST
+            time to a UTC execution instant for Agenda; the worker never uses
+            the server machine timezone to decide when the action is due.
+          </div>
+          <h3>What the mentor can see at each point</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Time/state</th>
+                  <th>Task assignment exists for mentor?</th>
+                  <th>Mentor can access the work?</th>
+                  <th>Notification sent?</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Before due · SCHEDULED</td>
+                  <td>No</td>
+                  <td><span class="badge b-red">No</span></td>
+                  <td><span class="badge b-red">No</span></td>
+                </tr>
+                <tr>
+                  <td>Due · PROCESSING</td>
+                  <td>Being created by existing workflow</td>
+                  <td>Not until the workflow commits the assignment</td>
+                  <td>Only after successful assignment</td>
+                </tr>
+                <tr>
+                  <td>After successful execution · COMPLETED</td>
+                  <td>Yes</td>
+                  <td><span class="badge b-green">Yes</span></td>
+                  <td><span class="badge b-green">Yes</span></td>
+                </tr>
+                <tr>
+                  <td>Cancelled before due · CANCELLED</td>
+                  <td>No</td>
+                  <td><span class="badge b-red">No</span></td>
+                  <td><span class="badge b-red">No</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout danger">
+            <strong
+              >Never implement “hide it until later” as the only
+              protection.</strong
+            >
+            Do not write reviewer IDs, Task Coordinator IDs, TaskSet coordinator
+            IDs, Section Coordinator IDs, active task access or review records
+            at schedule creation. Existing backend role checks or APIs could
+            still expose a prematurely assigned record. Keep the real assignment
+            state absent until execution.
+          </div>
+        </section>
+        <section class="section" id="actions">
+          <div class="section-kicker">05 · Action-specific behaviour</div>
+          <h2>How each scheduled action behaves</h2>
+          <h3>A. Exam Creation and Question Creation task assignment</h3>
+          <div class="mini-flow">
+            <div class="step">
+              <span class="step-num">1</span><b>Prepare task</b
+              ><small
+                >Create or select the draft task and configure its sets/sections
+                as usual.</small
+              >
+            </div>
+            <div class="step-arrow">→</div>
+            <div class="step">
+              <span class="step-num">2</span><b>Choose coordinators</b
+              ><small
+                >Choose Task Coordinator, each Set Coordinator and, for Exam
+                Creation, each Section Coordinator.</small
+              >
+            </div>
+            <div class="step-arrow">→</div>
+            <div class="step">
+              <span class="step-num">3</span><b>Schedule in IST</b
+              ><small
+                >Store the intended coordinator map and IST date/time in
+                ScheduledAction. Apply a task edit lock.</small
+              >
+            </div>
+            <div class="step-arrow">→</div>
+            <div class="step">
+              <span class="step-num">4</span><b>At due time</b
+              ><small
+                >Apply all coordinator assignments, activate through the
+                existing task flow and send its notifications.</small
+              >
+            </div>
+          </div>
+          <div class="diagram">
+            <div class="diagram-title">
+              TASK NOTIFICATION FLOW · ONLY AT THE SCHEDULED TIME
+            </div>
+            <div class="flow-stack">
+              <div class="flow-row">
+                <div class="flow-card blue">
+                  <strong>Scheduled task</strong
+                  ><span>Exam Creation or Question Creation becomes due.</span>
+                </div>
+                <div class="flow-card teal">
+                  <strong>Apply assignment map</strong
+                  ><span
+                    >Write the real coordinator IDs to Task / TaskSet / Section
+                    records.</span
+                  >
+                </div>
+                <div class="flow-card amber">
+                  <strong>Activate task</strong
+                  ><span
+                    >Run the existing task activation/assignment workflow.</span
+                  >
+                </div>
+              </div>
+              <div class="flow-down">↓</div>
+              <div class="branch-grid">
+                <div class="branch">
+                  <h3>Task Coordinator</h3>
+                  <p>Notify the person responsible for the overall task.</p>
+                </div>
+                <div class="branch">
+                  <h3>Set Coordinators</h3>
+                  <p>Notify every coordinator assigned to a TaskSet.</p>
+                </div>
+                <div class="branch">
+                  <h3>Section Coordinators</h3>
+                  <p>
+                    For Exam Creation, notify every coordinator assigned to an
+                    exam section.
+                  </p>
+                </div>
+              </div>
+              <div class="flow-down">↓</div>
+              <div class="flow-caption">
+                <strong
+                  >All applicable coordinator roles receive their notifications
+                  at execution time—not when the schedule is created.</strong
+                >
+              </div>
+            </div>
+          </div>
+          <p class="small">
+            For Question Creation there may be no exam sections; notify only the
+            coordinator roles that exist for that task type. Do not notify
+            mentors early. Ordinary contributors should follow the existing CMS
+            notification behaviour; this requirement specifically calls out
+            Task, Set and Section Coordinators.
+          </p>
+          <h3>B. Question Review assignment</h3>
+          <div class="mini-flow">
+            <div class="step">
+              <span class="step-num">1</span><b>Select review work</b
+              ><small
+                >Choose the question(s), reviewer and review context using the
+                normal CMS review action.</small
+              >
+            </div>
+            <div class="step-arrow">→</div>
+            <div class="step">
+              <span class="step-num">2</span><b>Save schedule in IST</b
+              ><small
+                >Store the intended review request, selected eligible version
+                ID/fingerprint and IST due time. Do not create the actual Review
+                record or reviewer assignment yet.</small
+              >
+            </div>
+            <div class="step-arrow">→</div>
+            <div class="step">
+              <span class="step-num">3</span><b>At due time</b
+              ><small
+                >Revalidate the saved version identity with existing review
+                eligibility logic. Skip changed questions/versions; assign only
+                unchanged eligible targets.</small
+              >
+            </div>
+            <div class="step-arrow">→</div>
+            <div class="step">
+              <span class="step-num">4</span><b>Notify reviewer</b
+              ><small
+                >Only after the eligible question enters review, send the
+                existing reviewer notification.</small
+              >
+            </div>
+          </div>
+          <div class="callout good">
+            <strong>Version rule for Review:</strong> Do not add a
+            Scheduler-specific version selector or a separate version-selection
+            algorithm. At schedule creation, retain the selected question ID,
+            eligible version ID and a lightweight snapshot/fingerprint of the
+            version that is currently eligible for review. At execution, run the
+            existing CMS review eligibility logic. If the selected
+            question/version has changed since it was scheduled, remove/skip
+            that question from this scheduled review and record the reason. Do
+            not silently substitute a newer/different version.
+          </div>
+          <h3>Future action types</h3>
+          <p>
+            Keep an action registry so more CMS operations can be added later.
+            Every new action type must supply its own Scheduler permission
+            mapping, existing workflow permission, target validation, execution
+            handler and notification behaviour. Additional actions are outside
+            the current scope and require separately confirmed requirements.
+          </p>
+        </section>
+        <section class="section" id="storage">
+          <div class="section-kicker">06 · Persistence and edit locking</div>
+          <h2>What is stored, and how is a scheduled task locked?</h2>
+          <p class="lead">
+            Keep a CMS-owned <code>ScheduledAction</code> record for the
+            business intent and let Agenda own its internal job record. For task
+            assignments, a pending schedule must also lock the task from
+            editing.
+          </p>
+          <div class="diagram">
+            <div class="diagram-title">
+              CONCEPTUAL DATA MODEL · BUSINESS RECORD, AGENDA JOB AND TASK LOCK
+            </div>
+            <div class="grid2">
+              <div class="node db">
+                <strong>ScheduledAction · CMS-owned</strong
+                ><span
+                  >_id · actionType · status · scheduledAtUtc · timeZone ·
+                  createdBy · projectId · action permission key · target IDs ·
+                  intended recipients · agendaJobId · result · history[]</span
+                >
+              </div>
+              <div class="node worker">
+                <strong>Agenda job · Agenda-owned</strong
+                ><span
+                  >name: cms.execute-scheduled-action · data: scheduledActionId
+                  + scheduleRevision · nextRunAt · lockedAt · attempts / failure
+                  fields</span
+                >
+              </div>
+              <div class="node front">
+                <strong>Task lock · CMS-owned</strong
+                ><span
+                  >Task.scheduleLock = { scheduledActionId, lockedBy, lockedAt
+                  }. Prevent edits to task, sets, sections and assignment
+                  configuration while active.</span
+                >
+              </div>
+              <div class="node target">
+                <strong>Existing domain records</strong
+                ><span
+                  >Task / TaskSet / Section · Question / Review · Users /
+                  Project. Actual assignee/reviewer state is written only when
+                  due.</span
+                >
+              </div>
+            </div>
+          </div>
+          <h3>Suggested ScheduledAction fields</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Field group</th>
+                  <th>Purpose</th>
+                  <th>Notes</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>actionType</code></td>
+                  <td>Which existing CMS operation to run.</td>
+                  <td>
+                    Current categories: TASK_ASSIGNMENT (Exam Creation or
+                    Question Creation task) and QUESTION_REVIEW_ASSIGNMENT. No
+                    other action types are in scope.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>scheduledAtUtc</code> + <code>timeZone</code></td>
+                  <td>Execution instant and fixed display timezone.</td>
+                  <td>
+                    All user-entered times are IST. Convert to UTC for execution
+                    and store <code>timeZone: "Asia/Kolkata"</code> for
+                    consistent IST display.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>createdBy</code> + <code>projectId</code></td>
+                  <td>Creator ownership and project scope.</td>
+                  <td>
+                    Used to filter the creator's own scheduler rows and enforce
+                    owner/Admin controls.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>payload</code></td>
+                  <td>Target IDs and intended action details.</td>
+                  <td>
+                    For task actions, store the intended coordinator map without
+                    applying it. For Review, store the selected question ID,
+                    eligible version ID and a lightweight fingerprint for change
+                    detection; existing CMS logic still decides eligibility.
+                  </td>
+                </tr>
+                <tr>
+                  <td>
+                    <code>agendaJobId</code> + <code>scheduleRevision</code>
+                  </td>
+                  <td>
+                    Connect the CMS record to its Agenda job and reject stale
+                    jobs.
+                  </td>
+                  <td>
+                    Agenda job data should carry the schedule ID and expected
+                    revision, not a copy of the whole task/question.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>status</code> + <code>executionResult</code></td>
+                  <td>CMS-facing lifecycle and result.</td>
+                  <td>
+                    SCHEDULING, SCHEDULED, PROCESSING, COMPLETED, PARTIAL,
+                    ACTION_REQUIRED, FAILED, CANCELLED.
+                  </td>
+                </tr>
+                <tr>
+                  <td><code>history[]</code> + <code>idempotencyKey</code></td>
+                  <td>Audit actions and stop duplicate side effects.</td>
+                  <td>
+                    Record who created/cancelled/sent-now, when execution
+                    started/finished and the result.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <h3>Task edit lock behaviour</h3>
+          <div class="diagram">
+            <div class="diagram-title">
+              TASK EDIT LOCK · CANCEL FIRST, THEN EDIT
+            </div>
+            <div class="lock-flow">
+              <div
+                class="lock-box"
+                style="background: #fffaf0; border-color: #f0d18a"
+              >
+                <strong>Schedule saved</strong
+                ><span>Task.scheduleLock points to ScheduledAction.</span>
+              </div>
+              <div class="lock-arrow">→</div>
+              <div
+                class="lock-box"
+                style="background: #fff4f2; border-color: #efb5ad"
+              >
+                <strong>Task is locked</strong
+                ><span
+                  >UI disabled + backend rejects task/set/section edits.</span
+                >
+              </div>
+              <div class="lock-arrow">→</div>
+              <div
+                class="lock-box"
+                style="background: #f1fbf9; border-color: #96d5ca"
+              >
+                <strong>Cancel schedule</strong
+                ><span
+                  >Agenda job cancelled; task lock cleared; normal edit
+                  permissions resume.</span
+                >
+              </div>
+            </div>
+            <div class="callout danger">
+              <strong>Important:</strong> showing a disabled Edit button is not
+              sufficient. Every backend mutation endpoint that can change the
+              scheduled task, its composition, sets, sections or coordinator
+              mapping must reject the update while an active schedule lock
+              exists. The user must cancel the schedule first; then edit and
+              create a new schedule if required.
+            </div>
+          </div>
+          <p class="small">
+            <strong>When does the lock clear?</strong> It clears when the
+            creator/Admin cancels the pending schedule, or after the scheduled
+            task assignment succeeds and the normal task activation commits.
+            Once active, the task follows the CMS's normal post-activation edit
+            rules. If execution ends in Action Required/Failed without
+            activating the task, keep it locked until the schedule is cancelled
+            so the task cannot be edited while a future action is still
+            unresolved.
+          </p>
+          <h3>Consistency and indexing</h3>
+          <ul>
+            <li>
+              Use indexes for Scheduler listing by <code>createdBy</code>,
+              <code>status</code>, <code>scheduledAtUtc</code>,
+              <code>projectId</code> and <code>actionType</code>, aligned to the
+              actual query filters.
+            </li>
+            <li>
+              Prevent multiple active schedules from locking the same task
+              unless product rules explicitly allow them. Use an atomic task
+              lock claim.
+            </li>
+            <li>
+              Creating ScheduledAction, creating the Agenda job and locking the
+              Task are multiple writes. Use a transaction where supported, or a
+              recoverable SCHEDULING state and reconciliation path.
+            </li>
+            <li>
+              Keep audit/history even after cancellation. Do not delete a
+              scheduled record merely because the user cancelled it.
+            </li>
+            <li>
+              No bulk-scheduling data model or batch scheduler API is required.
+            </li>
+          </ul>
+        </section>
+        <section class="section" id="worker">
+          <div class="section-kicker">07 · Agenda execution engine</div>
+          <h2>How Agenda knows the scheduled time has arrived</h2>
+          <p>
+            The browser is not involved after a schedule is saved. Agenda
+            persists a one-time delayed job in MongoDB and processes it when
+            due. Its handler reads the CMS ScheduledAction and executes the
+            matching existing workflow.
+          </p>
+          <div class="diagram">
+            <div class="diagram-title">
+              AGENDA JOB LIFECYCLE · ONE SCHEDULED ACTION
+            </div>
+            <div class="mini-flow">
+              <div class="step">
+                <span class="step-num">1</span><b>Save ScheduledAction</b
+                ><small
+                  >Business status SCHEDULED, target payload and UTC due
+                  time.</small
+                >
+              </div>
+              <div class="step-arrow">→</div>
+              <div class="step">
+                <span class="step-num">2</span><b>Agenda schedule()</b
+                ><small
+                  >Create one job with ScheduledAction ID and revision.</small
+                >
+              </div>
+              <div class="step-arrow">→</div>
+              <div class="step">
+                <span class="step-num">3</span><b>Wait until due</b
+                ><small>Agenda's backend discovers job when it is due.</small>
+              </div>
+              <div class="step-arrow">→</div>
+              <div class="step">
+                <span class="step-num">4</span><b>Lock &amp; execute</b
+                ><small
+                  >Agenda lock + CMS atomic state claim + existing
+                  workflow.</small
+                >
+              </div>
+            </div>
+            <div class="status-line">
+              <span class="status-node pending">SCHEDULED</span
+              ><span class="status-arrow">→</span
+              ><span class="status-node processing">PROCESSING</span
+              ><span class="status-arrow">→</span
+              ><span class="status-node done">COMPLETED</span>
+            </div>
+          </div>
+          <h3>Runtime responsibilities</h3>
+          <div class="feature-list">
+            <div class="feature">
+              <div class="icon">1</div>
+              <div>
+                <strong>Define one stable job handler</strong>
+                <p>
+                  For example <code>cms.execute-scheduled-action</code>. Its
+                  data contains only <code>scheduledActionId</code> and
+                  <code>scheduleRevision</code>; the handler loads the trusted
+                  payload from MongoDB.
+                </p>
+              </div>
+            </div>
+            <div class="feature">
+              <div class="icon">2</div>
+              <div>
+                <strong>Configure due-job polling</strong>
+                <p>
+                  MongoBackend polls according to <code>processEvery</code>.
+                  Tune the interval against acceptable delay and MongoDB load.
+                  Agenda must never execute an action before its due instant.
+                </p>
+              </div>
+            </div>
+            <div class="feature">
+              <div class="icon">3</div>
+              <div>
+                <strong>Use Agenda locking and concurrency</strong>
+                <p>
+                  Configure <code>maxConcurrency</code>, per-job concurrency,
+                  lock limit and lock lifetime. Also atomically claim
+                  ScheduledAction from SCHEDULED to PROCESSING so Cancel and
+                  Send Now cannot race with a running worker.
+                </p>
+              </div>
+            </div>
+            <div class="feature">
+              <div class="icon">4</div>
+              <div>
+                <strong>Retry only transient failures</strong>
+                <p>
+                  Use bounded retry/backoff for temporary infrastructure
+                  failures. Invalid targets, changed review eligibility or
+                  permission conflicts should become an explicit
+                  skipped/action-required result, not retry forever.
+                </p>
+              </div>
+            </div>
+            <div class="feature">
+              <div class="icon">5</div>
+              <div>
+                <strong>Keep CMS audit and Agenda state aligned</strong>
+                <p>
+                  Record execution started, completed, failure and retry
+                  information on ScheduledAction. Agenda owns its own lock and
+                  retry state; do not duplicate its lock mechanism in the CMS
+                  model.
+                </p>
+              </div>
+            </div>
+            <div class="feature">
+              <div class="icon">6</div>
+              <div>
+                <strong>Run as a managed backend worker</strong>
+                <p>
+                  Start Agenda after MongoDB is ready and shut it down
+                  gracefully with the server. The browser never runs timers and
+                  the worker must recover jobs after restarts.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div class="card amber">
+            <h3>Send Now and Cancel</h3>
+            <p>
+              <strong>Cancel:</strong> atomically mark the CMS record CANCELLED,
+              cancel the pending Agenda job and clear any task lock. Reject if
+              the action has already entered PROCESSING.<br /><strong
+                >Send Now:</strong
+              >
+              only the creator or Admin may trigger it. Move the pending job to
+              immediate execution (or safely replace its pending Agenda job with
+              a new revision), then use the same processor and validation path.
+              Never call the domain workflow directly from the API and never
+              create a second execution.
+            </p>
+          </div>
+          <div class="callout warn">
+            <strong>Timing contract:</strong> Agenda's MongoDB backend polls for
+            due jobs. The configured <code>processEvery</code>, DB response and
+            worker load affect how soon after the due time it starts. Define and
+            monitor a practical delay SLA. Promise “not before scheduledAt”, not
+            “exactly at the millisecond”.
+          </div>
+        </section>
+        <section class="section" id="permission">
+          <div class="section-kicker">08 · Authorization and visibility</div>
+          <h2>Who can see, create and control schedules?</h2>
+          <p class="lead">
+            The Scheduler permission reveals the Scheduler tab, but it does not
+            grant every CMS action. The user can schedule only action types for
+            which they also hold the existing underlying permission.
+          </p>
+          <div class="diagram">
+            <div class="diagram-title">
+              SCHEDULER TAB VISIBILITY AND LIST FILTERING
+            </div>
+            <div class="flow-stack">
+              <div class="flow-row">
+                <div class="flow-card blue">
+                  <strong>User opens CMS</strong
+                  ><span>Backend session is authenticated.</span>
+                </div>
+                <div class="flow-card teal">
+                  <strong>Check Scheduler permission</strong
+                  ><span
+                    >Does the user have the new platform-level scheduler
+                    permission?</span
+                  >
+                </div>
+                <div class="flow-card violet">
+                  <strong>Show Scheduler tab</strong
+                  ><span
+                    >Show navigation item only when permitted (Admin follows the
+                    CMS Admin bypass).</span
+                  >
+                </div>
+              </div>
+              <div class="flow-down">↓</div>
+              <div class="branch-grid">
+                <div class="branch">
+                  <h3>Non-Admin Scheduler user</h3>
+                  <p>
+                    List only schedules created by this user, and only action
+                    categories they currently have underlying permission to
+                    perform/manage.
+                  </p>
+                </div>
+                <div class="branch">
+                  <h3>Admin</h3>
+                  <p>
+                    Can see all scheduled actions and all their details across
+                    the platform, subject to normal platform data safeguards.
+                  </p>
+                </div>
+                <div class="branch">
+                  <h3>No Scheduler permission</h3>
+                  <p>
+                    No Scheduler tab and no Scheduler API access. Direct API
+                    calls must return forbidden.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+          <h3>Action permission filtering for a non-Admin</h3>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>User has Scheduler permission</th>
+                  <th>Also has underlying permission</th>
+                  <th>Can see / create that schedule type?</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Yes</td>
+                  <td>Task Management</td>
+                  <td>
+                    <span class="badge b-green">Yes</span> Exam Creation and
+                    Question Creation scheduled task actions.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Yes</td>
+                  <td>Question Review / relevant question permission</td>
+                  <td>
+                    <span class="badge b-green">Yes</span> Question Review
+                    schedules.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Yes</td>
+                  <td>No Task Management permission</td>
+                  <td>
+                    <span class="badge b-red">No</span> No task-related schedule
+                    rows or create controls.
+                  </td>
+                </tr>
+                <tr>
+                  <td>No</td>
+                  <td>Any underlying permission only</td>
+                  <td>
+                    <span class="badge b-red">No</span> Scheduler tab and
+                    Scheduler APIs remain unavailable.
+                  </td>
+                </tr>
+                <tr>
+                  <td>Admin</td>
+                  <td>Admin role</td>
+                  <td>
+                    <span class="badge b-green">All</span> Admin can see all
+                    scheduled action types and all schedule details.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <h3>Who can cancel or Send Now?</h3>
+          <div class="rule-grid">
+            <div class="rule">
+              <strong><span class="rule-icon">C</span> Schedule creator</strong>
+              <p>
+                Can cancel or Send Now only the schedules that this user
+                personally created, while the schedule is still pending.
+              </p>
+            </div>
+            <div class="rule">
+              <strong><span class="rule-icon">A</span> Admin</strong>
+              <p>
+                Can cancel or Send Now any pending schedule, regardless of who
+                created it.
+              </p>
+            </div>
+            <div class="rule">
+              <strong
+                ><span class="rule-icon">S</span> Other Scheduler users</strong
+              >
+              <p>
+                Cannot cancel or Send Now another user's schedule merely because
+                they have Scheduler permission.
+              </p>
+            </div>
+            <div class="rule">
+              <strong
+                ><span class="rule-icon">M</span> Mentors / recipients</strong
+              >
+              <p>
+                Do not receive access to a pending schedule and do not manage it
+                from the Scheduler page.
+              </p>
+            </div>
+          </div>
+          <div class="callout good">
+            <strong>Backend enforcement:</strong> on every list/detail/action
+            API, derive identity and role from the authenticated server session.
+            A non-Admin may operate only when
+            <code>createdBy === session.userId</code>; an Admin may operate
+            across creators. Never trust a frontend-provided creator ID.
+          </div>
+          <h3>Permission integration</h3>
+          <ul>
+            <li>
+              Add a dedicated platform-level permission, suggested key
+              <code>scheduler</code>, to the backend permission constants and
+              frontend permission options / Users &amp; Permissions UI.
+            </li>
+            <li>
+              Use the platform permission guard to show the tab, but also
+              enforce login + Scheduler permission on every backend Scheduler
+              endpoint.
+            </li>
+            <li>
+              At schedule creation, check the existing permission for the
+              specific action type. Scheduler permission cannot grant Task
+              Management or Question Review permissions.
+            </li>
+            <li>
+              Use creator ownership and Admin role for Cancel / Send Now. Do not
+              allow another Scheduler-permission holder to manage a colleague's
+              schedule.
+            </li>
+          </ul>
+        </section>
+        <section class="section" id="page">
+          <div class="section-kicker">09 · Frontend experience</div>
+          <h2>Dedicated Scheduler tab and listing</h2>
+          <p>
+            The Scheduler tab appears for users who have Scheduler permission.
+            Non-Admin users see only the schedules they created, filtered to
+            action types they are currently allowed to perform. Admin sees all
+            scheduled records and their full details.
+          </p>
+          <div class="diagram">
+            <div class="diagram-title">
+              SCHEDULER PAGE · NON-ADMIN VIEW MOCKUP
+            </div>
+            <div class="card" style="padding: 18px; background: #fbfcff">
+              <div
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  gap: 12px;
+                  align-items: center;
+                  flex-wrap: wrap;
+                "
+              >
+                <div>
+                  <strong style="font-size: 18px; color: #1b2940"
+                    >Scheduler</strong
+                  >
+                  <div class="small">Your scheduled CMS actions</div>
+                </div>
+                <span class="badge b-blue">Scheduler permission</span>
+              </div>
+              <div
+                style="display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0"
+              >
+                <span class="badge b-grey">Allowed action types ▾</span
+                ><span class="badge b-grey">Status ▾</span
+                ><span class="badge b-grey">Project ▾</span
+                ><span class="badge b-grey">Date range ▾</span
+                ><span class="badge b-grey">Search target / mentor</span>
+              </div>
+              <div class="table-wrap" style="margin: 0">
+                <table style="min-width: 620px">
+                  <thead>
+                    <tr>
+                      <th>Scheduled action</th>
+                      <th>Assigned to</th>
+                      <th>Scheduled for (IST)</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>
+                        <strong>Exam Creation · Midterm</strong><br /><span
+                          class="small"
+                          >Task #T-104 · Project Alpha</span
+                        >
+                      </td>
+                      <td>Task / Set / Section Coordinators</td>
+                      <td>30 Nov · 10:00 AM IST</td>
+                      <td><span class="badge b-blue">Scheduled</span></td>
+                      <td>View · Send Now · Cancel</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <strong>Question Review · Q-812</strong><br /><span
+                          class="small"
+                          >Project Beta</span
+                        >
+                      </td>
+                      <td>Mentor B</td>
+                      <td>01 Dec · 09:30 AM IST</td>
+                      <td><span class="badge b-blue">Scheduled</span></td>
+                      <td>View · Send Now · Cancel</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <strong>Question Creation · Practice Set</strong
+                        ><br /><span class="small"
+                          >Task #T-102 · Project Alpha</span
+                        >
+                      </td>
+                      <td>Task / Set Coordinators</td>
+                      <td>27 Nov · 09:00 AM IST</td>
+                      <td><span class="badge b-green">Completed</span></td>
+                      <td>View Result</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="small" style="margin-top: 8px">
+                Illustrative data only. Rows are limited to schedules created by
+                the signed-in user and their permitted action categories.
+              </div>
+            </div>
+          </div>
+          <div class="diagram">
+            <div class="diagram-title">
+              ADMIN VIEW MOCKUP · PLATFORM-WIDE SCHEDULE VISIBILITY
+            </div>
+            <div class="card" style="padding: 18px; background: #fbfcff">
+              <div
+                style="
+                  display: flex;
+                  justify-content: space-between;
+                  align-items: center;
+                  gap: 12px;
+                "
+              >
+                <strong style="font-size: 18px; color: #1b2940"
+                  >Scheduler · Admin</strong
+                ><span class="badge b-violet"
+                  >All creators / all action types</span
+                >
+              </div>
+              <div class="table-wrap" style="margin-top: 14px">
+                <table style="min-width: 620px">
+                  <thead>
+                    <tr>
+                      <th>Action</th>
+                      <th>Created by</th>
+                      <th>Recipient</th>
+                      <th>Due (IST)</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Question Creation Task</td>
+                      <td>Manager A</td>
+                      <td>Task Coordinators</td>
+                      <td>30 Nov · 10 AM IST</td>
+                      <td><span class="badge b-blue">Scheduled</span></td>
+                      <td>View · Send Now · Cancel</td>
+                    </tr>
+                    <tr>
+                      <td>Question Review</td>
+                      <td>Manager B</td>
+                      <td>Mentor C</td>
+                      <td>01 Dec · 9:30 AM IST</td>
+                      <td><span class="badge b-blue">Scheduled</span></td>
+                      <td>View · Send Now · Cancel</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div class="small">
+                Admin can inspect every schedule, including creator, target,
+                project, recipients, audit trail and execution result.
+              </div>
+            </div>
+          </div>
+          <h3>Only these Scheduler actions are in the confirmed scope</h3>
+          <div class="grid2">
+            <div class="card">
+              <h3>View details</h3>
+              <p>
+                Show action type, target task/question, project, intended
+                coordinators/reviewers, scheduled date/time, creator, status,
+                audit and execution result.
+              </p>
+            </div>
+            <div class="card">
+              <h3>Cancel</h3>
+              <p>
+                Creator or Admin only. Allowed while pending. Cancels the Agenda
+                job, marks the business record CANCELLED and releases the task
+                edit lock if present.
+              </p>
+            </div>
+            <div class="card">
+              <h3>Send Now</h3>
+              <p>
+                Creator or Admin only. Runs through the same Agenda processor
+                and existing CMS validation immediately; no second execution or
+                bypass.
+              </p>
+            </div>
+            <div class="card">
+              <h3>Filters and history</h3>
+              <p>
+                Filter by action type the user may access, status, project and
+                date. Completed/cancelled rows remain for audit and history.
+              </p>
+            </div>
+          </div>
+          <h3>Where the Schedule option appears</h3>
+          <ul>
+            <li>
+              Task Assignment / coordinator selection for Exam Creation and
+              Question Creation.
+            </li>
+            <li>Question Review / assign reviewer action.</li>
+          </ul>
+          <p class="small">
+            Use existing React + TypeScript + Ant Design, Axios and TanStack
+            Query patterns. Each scheduling request represents one normal CMS
+            operation; no bulk scheduling functionality is included. Scheduler
+            tab visibility is permission based; non-Admin rows are limited to
+            the creator and the action types they are permitted to perform.
+          </p>
+        </section>
+        <section class="section" id="time">
+          <div class="section-kicker">10 · Time handling</div>
+          <h2>All Scheduler dates and times use IST</h2>
+          <div class="grid2">
+            <div class="card blue">
+              <h3>What the user selects</h3>
+              <p>
+                A date/time picker that always uses
+                <strong>Indian Standard Time (IST)</strong>, for example
+                <strong>30 November 2026 · 10:00 AM IST</strong>. Do not use the
+                browser or device timezone.
+              </p>
+            </div>
+            <div class="card teal">
+              <h3>What the backend stores</h3>
+              <p>
+                An absolute UTC timestamp plus the fixed IANA timezone
+                <strong>Asia/Kolkata</strong>. This is an implementation
+                representation of IST, not a user-selectable timezone.
+              </p>
+            </div>
+          </div>
+          <ul>
+            <li>
+              Reject dates in the past, including a time earlier than the
+              current time on the selected day.
+            </li>
+            <li>
+              Send an unambiguous ISO 8601 instant derived from IST. Never send
+              a timezone-free date string or interpret a browser-local timestamp
+              as IST.
+            </li>
+            <li>
+              Store <code>scheduledAtUtc</code> and the fixed
+              <code>timeZone: "Asia/Kolkata"</code>. Agenda compares UTC
+              instants only; the UI displays every schedule in IST regardless of
+              the user's device timezone or the server's local timezone.
+            </li>
+            <li>
+              Once saved, the schedule time is not edited in-place in the
+              Scheduler page. To change it, the creator or Admin cancels the
+              current schedule and creates a new one from the source CMS
+              workflow.
+            </li>
+            <li>
+              Agenda's polling interval determines how soon after the due
+              instant the job starts. The system must never intentionally
+              execute early; exact millisecond execution is not promised.
+            </li>
+          </ul>
+          <div class="callout good">
+            <strong>Example:</strong> the manager chooses
+            <strong>30 November 2026, 10:00 AM IST</strong>. The frontend
+            interprets it in <code>Asia/Kolkata</code> (UTC+05:30) and converts
+            it to <strong>04:30 AM UTC</strong>. MongoDB stores the UTC instant
+            with the fixed timezone metadata. Agenda executes at or shortly
+            after that instant; every Scheduler screen displays
+            <strong>10:00 AM IST</strong>.
+          </div>
+        </section>
+        <section class="section" id="reliability">
+          <div class="section-kicker">11 · Safety and edge cases</div>
+          <h2>What if something changes before or during execution?</h2>
+          <p>
+            Agenda guarantees durable job processing, but the CMS must re-check
+            its own business rules at execution time. The scheduled intent may
+            become invalid while it is waiting.
+          </p>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Scenario</th>
+                  <th>Required behaviour</th>
+                  <th>Result</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>Task has an active scheduled assignment</td>
+                  <td>
+                    Block edits to task, sets, sections and coordinator mapping
+                    in both UI and backend. User must Cancel first to unlock.
+                  </td>
+                  <td><span class="badge b-amber">Locked</span></td>
+                </tr>
+                <tr>
+                  <td>Creator cancels before due</td>
+                  <td>
+                    Atomically mark CANCELLED, cancel pending Agenda job and
+                    release Task.scheduleLock.
+                  </td>
+                  <td><span class="badge b-grey">Cancelled</span></td>
+                </tr>
+                <tr>
+                  <td>Someone attempts to edit a locked task by API</td>
+                  <td>
+                    Reject in backend even if the frontend edit control was
+                    bypassed.
+                  </td>
+                  <td><span class="badge b-red">Forbidden / Conflict</span></td>
+                </tr>
+                <tr>
+                  <td>Mentor is inactive or no longer eligible</td>
+                  <td>
+                    Do not assign to that mentor. Record the affected recipient
+                    and tell the schedule creator/Admin.
+                  </td>
+                  <td><span class="badge b-amber">Action Required</span></td>
+                </tr>
+                <tr>
+                  <td>Question/version changed before scheduled Review</td>
+                  <td>
+                    Remove/skip that question from this scheduled review if its
+                    scheduled target/fingerprint no longer matches. Do not
+                    switch to another version; record the skip reason.
+                  </td>
+                  <td><span class="badge b-amber">Skipped</span></td>
+                </tr>
+                <tr>
+                  <td>Question review already exists</td>
+                  <td>
+                    Use existing conflict checks; do not create a second review.
+                    Record the reason.
+                  </td>
+                  <td><span class="badge b-amber">Action Required</span></td>
+                </tr>
+                <tr>
+                  <td>Backend restarts before due time</td>
+                  <td>
+                    Agenda reloads the persisted job from MongoDB after startup;
+                    the CMS ScheduledAction remains the business record.
+                  </td>
+                  <td><span class="badge b-blue">Still Scheduled</span></td>
+                </tr>
+                <tr>
+                  <td>Worker crashes after a side effect</td>
+                  <td>
+                    Agenda lock/retry handles job recovery; CMS idempotency key
+                    prevents duplicate assignments, reviews or notifications.
+                  </td>
+                  <td><span class="badge b-amber">Retry / Attention</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <h3>State lifecycle</h3>
+          <div class="diagram">
+            <div class="diagram-title">SCHEDULED ACTION STATUS LIFECYCLE</div>
+            <div class="status-line">
+              <span class="status-node pending">SCHEDULED</span
+              ><span class="status-arrow">→</span
+              ><span class="status-node processing">PROCESSING</span
+              ><span class="status-arrow">→</span
+              ><span class="status-node done">COMPLETED</span>
+            </div>
+            <div class="status-line">
+              <span class="status-node processing">PROCESSING</span
+              ><span class="status-arrow">→</span
+              ><span class="status-node error"
+                >PARTIAL / ACTION_REQUIRED / FAILED</span
+              >
+            </div>
+            <div class="status-line">
+              <span class="status-node pending">SCHEDULED</span
+              ><span class="status-arrow">→</span
+              ><span class="status-node cancel">CANCELLED</span
+              ><span class="small"
+                >Creator or Admin, before processing starts</span
+              >
+            </div>
+          </div>
+          <div class="callout danger">
+            <strong>Idempotency is mandatory:</strong> Agenda locks prevent two
+            processors from normally claiming the same job, but a processor can
+            complete a CMS side effect and crash before reporting success. The
+            CMS must use a stable execution key (for example ScheduledAction ID
+            + action target ID) before creating a Review, writing coordinator
+            assignments or sending notifications again.
+          </div>
+          <h3>Expected behaviour for notification timing</h3>
+          <div class="rule-grid">
+            <div class="rule">
+              <strong
+                ><span class="rule-icon">0</span>At schedule creation</strong
+              >
+              <p>
+                No assignment notification goes to the
+                mentor/coordinator/reviewer. Only save the pending schedule and
+                audit it.
+              </p>
+            </div>
+            <div class="rule">
+              <strong
+                ><span class="rule-icon">1</span>At scheduled execution</strong
+              >
+              <p>
+                Existing task/review code sends its notifications after the
+                corresponding CMS action succeeds.
+              </p>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+    <footer class="footer">
+      Question Service · CMS Scheduler and Agenda.js design · All scheduler
+      dates and times use IST (Asia/Kolkata). Repository baseline dev-testing @
+      9e21a132 (27 Nov 2026). Covers Scheduler permission and ownership,
+      action-specific access, task edit locks, review version identity and
+      eligibility, Tasks and Question Review scope, no-bulk-scheduling scope,
+      due-time notifications and Agenda execution. This is an implementation
+      design, not application code.
+    </footer>
+  </body>
 </html>
